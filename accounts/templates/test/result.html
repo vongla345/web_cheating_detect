@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết quả</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f9fc;
+            text-align: center;
+            padding: 50px;
+        }
+        .result-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 400px;
+            margin: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .score {
+            font-size: 2em;
+            color: #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="result-container">
+        <h2>Kết quả của bạn</h2>
+        <p class="score">{{ score }} / {{ total_question }}</p>
+        <p>Bạn đã hoàn thành bài kiểm tra. Cảm ơn bạn!</p>
+    </div>
+</body>
+</html>
