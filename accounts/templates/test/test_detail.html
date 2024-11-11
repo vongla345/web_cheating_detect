@@ -3,38 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ test.1 }}</title> <!-- Tên bài kiểm tra -->
+    <title>Phòng chờ và Bài kiểm tra</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     <script type="text/javascript">
-        // More API functions here:
-        // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
-
-        // the link to your model provided by Teachable Machine export panel
         const URL = "https://teachablemachine.withgoogle.com/models/vnE0p8Dih/";
+        let model, webcam, maxPredictions;
+        let isPredicting = false;  // Biến kiểm soát trạng thái dự đoán
 
-        let model, webcam, labelContainer, maxPredictions;
-
-        // Load the image model and setup the webcam
-        async function init() {
+        async function initCamera() {
             const modelURL = URL + "model.json";
             const metadataURL = URL + "metadata.json";
 
-            // load the model and metadata
-            // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
-            // or files from your local hard drive
-            // Note: the pose library adds "tmImage" object to your window (window.tmImage)
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
-            // Convenience function to setup a webcam
-            const flip = true; // whether to flip the webcam
-            webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
-            await webcam.setup(); // request access to the webcam
+            const flip = true;
+            webcam = new tmImage.Webcam(200, 200, flip);
+            await webcam.setup();
             await webcam.play();
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
             window.requestAnimationFrame(loop);
 
-            // append elements to the DOM
             document.getElementById("webcam-container").appendChild(webcam.canvas);
             labelContainer = document.getElementById("label-container");
             for (let i = 0; i < maxPredictions; i++) { // and class labels
@@ -43,9 +33,20 @@
         }
 
         async function loop() {
-            webcam.update(); // update the webcam frame
-            await predict();
+            webcam.update();
+            if (isPredicting) {
+                await predict();
+            }
             window.requestAnimationFrame(loop);
+        }
+
+        function startTest() {
+            // Ẩn phần waiting room (chỉ ẩn các nút), hiển thị phần test detail
+            document.getElementById("start-buttons").style.display = "none";
+            document.getElementById("test-detail").style.display = "block";
+
+            // Bắt đầu dự đoán khi người dùng đồng ý kiểm tra
+            isPredicting = true;
         }
 
         let dataBuffer = [];  // Mảng tạm lưu trữ dữ liệu
@@ -68,7 +69,7 @@
             }
 
             // Check if it's time to send the data (5s)
-            const currentTime = Date.now();
+            const currentTime = new Date(Date.now() + 7 * 60 * 60 * 1000);  // Cộng 7 giờ vào thời gian hiện tại
             if (currentTime - lastSentTime >= sendInterval) {
                 console.log("Sending data to server:", dataBuffer);
                 await sendDataToServer(dataBuffer);  // Gửi dữ liệu lên server
@@ -89,26 +90,8 @@
             const result = await response.json();
             console.log(result);  // Log phản hồi từ server
         }
-
-
     </script>
-
-
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f7f9fc;
-            padding: 20px;
-        }
-
-        .question {
-            margin-bottom: 20px;
-            padding: 10px;
-            background: #ffffff;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
         #webcam-container {
             position: fixed;
             top: 20px;
@@ -125,27 +108,39 @@
             height: 100%;
             border-radius: 5px;
         }
+
+        #test-detail {
+            display: none; /* Ẩn phần bài kiểm tra lúc đầu */
+        }
     </style>
 </head>
 <body>
 <h2>Test {{ test.0 }}</h2>
-<button type="button" onclick="init()">Start</button>
-<div id="webcam-container"></div>
-<div id="label-container"></div>
-<form method="post">
-    {% csrf_token %}
-    {% for question in questions_data %}
-        <div class="question">
-            <p><strong>{{ question.question_text }}</strong></p>
-            {% for choice in question.choices %}
-                <label>
-                    <input type="radio" name="{{ question.id }}" value="{{ choice.0 }}">
-                    {{ choice.1 }}
-                </label><br>
-            {% endfor %}
-        </div>
-    {% endfor %}
-    <button type="submit">Submit</button>
-</form>
+<div id="waiting-room">
+    <h2>Kiểm tra Camera</h2>
+    <div id="webcam-container"></div>
+    <div id="start-buttons">
+        <button onclick="initCamera()">Bật Camera</button>
+        <button onclick="startTest()">Đồng ý và Bắt đầu Kiểm tra</button>
+    </div>
+</div>
+
+<div id="test-detail">
+    <form method="post">
+        {% csrf_token %}
+        {% for question in questions_data %}
+            <div class="question">
+                <p><strong>{{ question.question_text }}</strong></p>
+                {% for choice in question.choices %}
+                    <label>
+                        <input type="radio" name="{{ question.id }}" value="{{ choice.0 }}">
+                        {{ choice.1 }}
+                    </label><br>
+                {% endfor %}
+            </div>
+        {% endfor %}
+        <button type="submit">Submit</button>
+    </form>
+</div>
 </body>
 </html>

@@ -181,28 +181,6 @@ def test_detail(request, test_id):
 
     conn.close()
     return render(request, 'test/test_detail.html', {'test': test, 'questions_data': questions_data})
-
-
-import json
-import logging
-from datetime import datetime
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.db import connection
-
-# Create a logger
-logger = logging.getLogger(__name__)
-
-import json
-import logging
-from datetime import datetime
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.db import connection
-
-# Create a logger
-logger = logging.getLogger(__name__)
-
 @csrf_exempt
 def save_prediction(request):
     if request.method == 'POST':
