@@ -30,10 +30,30 @@
         .test-item:hover {
             background-color: #e0e0e0;  /* Thay đổi màu khi hover */
         }
+
+        .create-button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            background-color: #4CAF50;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .create-button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
     <h2>Available Tests</h2>
+    {% if is_teacher %}
+    <div>
+        <a href="{% url 'create_test' %}" class="create-button">Create New Test</a>
+    </div>
+    {% endif %}
     <div class="test-grid">
         {% for test in tests %}
             <a href="{% url 'test_detail' test.0 %}" class="test-item">

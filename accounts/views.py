@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from .helpers import process_excel
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -9,9 +9,9 @@ import sqlite3
 import json
 import time
 
-from spyder.plugins.completion.providers.kite.utils.status import status
-from sympy.stats.rv import probability
-from tensorflow.python.ops.weak_tensor_ops import operator
+from .form import TestForm, QuestionForm, ChoiceForm
+from .models import Test, Question, Choice
+from django.forms import formset_factory
 
 time.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -21,7 +21,7 @@ from django.db import connection
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
-from .form import LoginForm, RegisterForm
+from .form import LoginForm, RegisterForm, QuestionFormSet, ChoiceFormSet
 import logging
 from django.http import HttpResponse
 
@@ -36,13 +36,17 @@ def login_view(request):
 
             conn = sqlite3.connect('db.sqlite3')
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (username, password))
+            cursor.execute("SELECT id,role_id FROM users WHERE username=? AND password=?", (username, password))
             user_data = cursor.fetchone()
             conn.close()
 
             if user_data:
                 logger.info('Login successful')
                 request.session['user_id'] = user_data[0]
+                if user_data[1] == 2:
+                    request.session['is_teacher'] = True
+                else:
+                    request.session['is_teacher'] = False
                 return redirect('profile')
             else:
                 logger.error(request, 'Login failed. Please check your username and password.')
@@ -86,7 +90,7 @@ def profile_view(request):
 
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
-    cursor.execute("SELECT username, email, first_name, last_name, phone, date_of_birth, gender, school_name FROM users WHERE id=?", (user_id,))
+    cursor.execute("SELECT username, email, first_name, last_name, phone, date_of_birth, gender, school_name, role_id FROM users WHERE id=?", (user_id,))
     user_data = cursor.fetchone()
     conn.close()
 
@@ -101,7 +105,8 @@ def profile_view(request):
         'phone': user_data[4],
         'date_of_birth': user_data[5],
         'gender': user_data[6],
-        'school_name': user_data[7]
+        'school_name': user_data[7],
+        'role_id': user_data[8]
     }
 
     # Render trang profile với thông tin người dùng
@@ -120,8 +125,65 @@ def test_list(request):
     cursor.execute("SELECT * FROM tests")
     tests = cursor.fetchall()
     conn.close()
+    is_teacher = request.session.get('is_teacher')
 
-    return render(request, 'test/test_list.html', {'tests': tests})
+    return render(request, 'test/test_list.html', {'tests': tests, 'is_teacher': is_teacher})
+def create_test(request):
+    if request.method == 'POST':
+        test_form = TestForm(request.POST)
+        question_formset = QuestionFormSet(request.POST, prefix='questions')
+
+        if test_form.is_valid() and question_formset.is_valid():
+            conn = sqlite3.connect('db.sqlite3')
+            cursor = conn.cursor()
+
+            # Lưu bài kiểm tra
+            title = test_form.cleaned_data['title']
+            description = test_form.cleaned_data['description']
+            cursor.execute("INSERT INTO tests (title, description) VALUES (?, ?)", (title, description))
+            test_id = cursor.lastrowid
+
+            for i, question_form in enumerate(question_formset):
+                question_text = question_form.cleaned_data['question_text']
+                cursor.execute("INSERT INTO questions (question_text, test_id) VALUES (?, ?)", (question_text, test_id))
+                question_id = cursor.lastrowid
+
+                # Xử lý choices cho câu hỏi
+                for j in range(4):  # Mỗi câu hỏi có 4 choices
+                    choice_text = request.POST.get(f'choices-{i}-{j}-choice_text')
+                    if choice_text is None:
+                        logger.error(f"Choice {j} is missing")
+                    else:
+                        logger.info(f"Choice {j}: {choice_text}")
+                    is_correct = request.POST.get(f'choices-{i}-{j}-is_correct', False)
+                    cursor.execute(
+                        "INSERT INTO choices (choice_text, question_id, is_correct) VALUES (?, ?, ?)",
+                        (choice_text, question_id, is_correct)
+                    )
+
+            conn.commit()
+            conn.close()
+            return redirect('test_list')
+
+    else:
+        test_form = TestForm()
+        question_formset = QuestionFormSet(prefix='questions')
+
+    return render(request, 'test/create_test.html', {
+        'test_form': test_form,
+        'question_formset': question_formset,
+    })
+def upload_test(request):
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        file = request.FILES['excel_file']
+        try:
+            # Gọi hàm xử lý file Excel
+            questions = process_excel(file)
+            return JsonResponse({'success': True, 'questions': questions})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
 def test_detail(request, test_id):
     request.session['test_id'] = test_id
 

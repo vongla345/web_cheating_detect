@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Test</title>
+    <script>
+        let questionIndex = {{ question_formset.total_form_count|default:0 }};
+
+        // Hàm thêm câu hỏi mới thủ công
+        function addQuestion() {
+            const container = document.getElementById("questions-container");
+
+            // HTML cho câu hỏi mới
+            const questionHTML = `
+                <div class="question" id="question-${questionIndex}">
+                    <h4>Question ${questionIndex + 1}</h4>
+                    <label for="id_questions-${questionIndex}-question_text">Question:</label>
+                    <input type="text" name="questions-${questionIndex}-question_text" id="id_questions-${questionIndex}-question_text" required><br>
+
+                    <div class="choices">
+                        <h5>Choices</h5>
+                        ${[...Array(4)].map((_, i) => `
+                            <div class="choice">
+                                <label for="id_choices-${questionIndex}-${i}-choice_text">Choice ${i + 1}:</label>
+                                <input type="text" name="choices-${questionIndex}-${i}-choice_text" id="id_choices-${questionIndex}-${i}-choice_text" required>
+                                <label for="id_choices-${questionIndex}-${i}-is_correct">Correct:</label>
+                                <input type="checkbox" name="choices-${questionIndex}-${i}-is_correct" id="id_choices-${questionIndex}-${i}-is_correct"><br>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            const questionDiv = document.createElement("div");
+            questionDiv.innerHTML = questionHTML;
+            container.appendChild(questionDiv);
+
+            questionIndex += 1;
+            document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
+        }
+
+        // Hàm xử lý upload file Excel
+        function handleFileUpload(event) {
+            const fileInput = event.target;
+            const formData = new FormData();
+            formData.append('excel_file', fileInput.files[0]);
+
+            fetch("{% url 'upload_test' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        data.questions.forEach(addQuestionFromExcel);
+                    } else {
+                        alert(`Error: ${data.error}`);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error uploading file:", error);
+                    alert("An error occurred while uploading the file.");
+                });
+        }
+
+        // Hàm thêm câu hỏi từ dữ liệu Excel
+        function addQuestionFromExcel(questionData) {
+            const container = document.getElementById("questions-container");
+
+            const questionHTML = `
+                <div class="question" id="question-${questionIndex}">
+                    <h4>Question ${questionIndex + 1}</h4>
+                    <label for="id_questions-${questionIndex}-question_text">Question:</label>
+                    <input type="text" name="questions-${questionIndex}-question_text" id="id_questions-${questionIndex}-question_text" value="${questionData.question_text}" required><br>
+
+                    <div class="choices">
+                        <h5>Choices</h5>
+                        ${questionData.choices.map((choice, i) => `
+                            <div class="choice">
+                                <label for="id_choices-${questionIndex}-${i}-choice_text">Choice ${i + 1}:</label>
+                                <input type="text" name="choices-${questionIndex}-${i}-choice_text" id="id_choices-${questionIndex}-${i}-choice_text" value="${choice.choice_text}" required>
+                                <label for="id_choices-${questionIndex}-${i}-is_correct">Correct:</label>
+                                <input type="checkbox" name="choices-${questionIndex}-${i}-is_correct" id="id_choices-${questionIndex}-${i}-is_correct" ${choice.is_correct ? 'checked' : ''}><br>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            const questionDiv = document.createElement("div");
+            questionDiv.innerHTML = questionHTML;
+            container.appendChild(questionDiv);
+
+            questionIndex += 1;
+            document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
+        }
+
+        // Đảm bảo mỗi câu hỏi chỉ có một đáp án đúng
+        document.addEventListener('change', (event) => {
+            if (event.target.type === 'checkbox' && event.target.name.includes('is_correct')) {
+                const questionIndex = event.target.name.split('-')[1];
+                const checkboxes = document.querySelectorAll(`input[name^="choices-${questionIndex}-"][name$="-is_correct"]`);
+                checkboxes.forEach(cb => {
+                    if (cb !== event.target) {
+                        cb.checked = false;
+                    }
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+<h1>Create a New Test</h1>
+<form method="post" enctype="multipart/form-data" action="{% url 'upload_test' %}">
+    {% csrf_token %}
+    <h3>Upload Questions from Excel</h3>
+    <input type="file" id="excel_file" name="excel_file" accept=".xlsx" onchange="handleFileUpload(event)" required>
+    <button type="submit">Upload File</button>
+</form>
+
+<form method="post" action="{% url 'create_test' %}">
+    {% csrf_token %}
+    <h3>Test Information</h3>
+    <label for="title">Title:</label>
+    <input type="text" id="title" name="title" required><br>
+    <label for="description">Description:</label>
+    <input type="text" id="description" name="description"><br><br>
+
+    <h3>Questions</h3>
+    <div id="questions-container">
+        {{ question_formset.management_form }}
+        {% for form in question_formset %}
+            <div class="question">
+                {{ form.as_p }}
+                <div class="choices">
+                    {% for choice_form in form.choices %}
+                        <div class="choice">
+                            {{ choice_form.choice_text.label }} {{ choice_form.choice_text }}
+                            {{ choice_form.is_correct.label }} {{ choice_form.is_correct }}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <button type="button" onclick="addQuestion()">Add Another Question</button>
+    <br><br>
+    <button type="submit">Create Test</button>
+</form>
+</body>
+</html>

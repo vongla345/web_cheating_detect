@@ -1,4 +1,5 @@
 from django import forms
+from django.forms import formset_factory
 import sqlite3
 
 
@@ -42,3 +43,17 @@ class RegisterForm(forms.Form):
                        (username, first_name, last_name, email, password))
         conn.commit()
         conn.close()
+
+class ChoiceForm(forms.Form):
+    choice_text = forms.CharField(max_length=255, required=True, label="Choice")
+    is_correct = forms.BooleanField(required=False, label="Correct Answer")
+
+class QuestionForm(forms.Form):
+    question_text = forms.CharField(max_length=255, required=True, label="Question")
+
+ChoiceFormSet = formset_factory(ChoiceForm, min_num=4, max_num=4, extra=0)
+QuestionFormSet = formset_factory(QuestionForm, min_num=0, extra=0)
+
+class TestForm(forms.Form):
+    title = forms.CharField(max_length=255, required=True, label="Test Title")
+    description = forms.CharField(max_length=255, required=False, label="Description")

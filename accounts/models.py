@@ -25,7 +25,7 @@ class Question(models.Model):
     def __str__(self):
         return self.question_text
 
-class Result(models.Model):
+class Choice(models.Model):
     test = models.ForeignKey(Test, on_delete=models.CASCADE)
     user = models.CharField(max_length=100)  # Hoặc sử dụng mô hình User của Django
     score = models.IntegerField()
