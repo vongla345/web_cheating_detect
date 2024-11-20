@@ -184,6 +184,89 @@ def upload_test(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request'})
+def edit_test(request, test_id):
+    conn = sqlite3.connect('db.sqlite3')
+    cursor = conn.cursor()
+
+    # Lấy thông tin bài kiểm tra
+    cursor.execute("SELECT title, description FROM tests WHERE id = ?", (test_id,))
+    test = cursor.fetchone()
+
+    if not test:
+        return HttpResponse("Test not found", status=404)
+
+    title, description = test
+    test_form = TestForm(initial={'title': title, 'description': description})
+
+    # Lấy danh sách câu hỏi và lựa chọn
+    cursor.execute("SELECT id, question_text FROM questions WHERE test_id = ?", (test_id,))
+    questions = cursor.fetchall()
+
+    # Lấy các lựa chọn cho mỗi câu hỏi
+    question_data = []
+    for question_id, question_text in questions:
+        cursor.execute("SELECT id, choice_text, is_correct FROM choices WHERE question_id = ?", (question_id,))
+        choices = cursor.fetchall()
+        question_data.append({
+            'id': question_id,
+            'question_text': question_text,
+            'choices': choices
+        })
+
+    conn.close()
+
+    if request.method == 'POST':
+        test_form = TestForm(request.POST)
+        logger.info(f"Test ID: {test_id}")
+        if test_form.is_valid():
+            conn = sqlite3.connect('db.sqlite3')
+            cursor = conn.cursor()
+
+            # Cập nhật thông tin bài kiểm tra
+            title = test_form.cleaned_data['title']
+            description = test_form.cleaned_data['description']
+            cursor.execute("UPDATE tests SET title = ?, description = ? WHERE id = ?", (title, description, test_id))
+            # Cập nhật câu hỏi và lựa chọn
+            question_count = int(request.POST.get('question_count'))
+            logger.info(question_count)
+            for i in range(question_count):
+                question_text = request.POST.get(f'questions-{i}-question_text')
+                question_id = request.POST.get(f'questions-{i}-id')
+
+                if question_id:
+                    logger.info(f"Updating question {question_id}")
+                    cursor.execute("UPDATE questions SET question_text = ? WHERE id = ?", (question_text, question_id))
+                else:
+                    cursor.execute("INSERT INTO questions (test_id, question_text) VALUES (?, ?)", (test_id, question_text))
+                    question_id = cursor.lastrowid  # Lấy ID của câu hỏi mới
+
+                # Cập nhật hoặc thêm mới lựa chọn cho câu hỏi
+                for j in range(4):  # Giới hạn 4 lựa chọn mỗi câu hỏi
+                    choice_text = request.POST.get(f'choices-{i}-{j}-choice_text')
+                    is_correct = request.POST.get(f'choices-{i}-{j}-is_correct', False)
+                    choice_id = request.POST.get(f'choices-{i}-{j}-id', None)
+                    if choice_id is not None:
+                        cursor.execute(
+                            "UPDATE choices SET choice_text = ?, is_correct = ? WHERE id = ?",
+                            (choice_text, is_correct, choice_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "INSERT INTO choices (choice_text, question_id, is_correct) VALUES (?, ?, ?)",
+                            (choice_text, question_id, is_correct)
+                        )
+
+            conn.commit()
+            conn.close()
+            return redirect('test_list')
+
+    return render(request, 'test/edit_test.html', {
+        'test_form': test_form,
+        'test_id': test_id,
+        'question_data': question_data,  # Truyền danh sách câu hỏi và lựa chọn
+        'question_count': len(question_data)  # Số lượng câu hỏi hiện tại
+    })
+
 def test_detail(request, test_id):
     request.session['test_id'] = test_id
 

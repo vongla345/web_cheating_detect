@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Test</title>
+    <script>
+        let questionIndex = {{ question_count|default:0 }};
+
+        function addQuestion() {
+            const container = document.getElementById("questions-container");
+
+            // Tạo HTML cho câu hỏi mới
+            const questionHTML = `
+        <div class="question" id="question-${questionIndex}">
+            <label for="questions-${questionIndex}-question_text">Question:</label>
+            <input type="text" name="questions-${questionIndex}-question_text" required><br>
+            <div class="choices">
+                <h5>Choices</h5>
+                ${[...Array(4)].map((_, i) => `
+                    <div class="choice">
+                        <label for="choices-${questionIndex}-${i}-choice_text">Choice ${i + 1}:</label>
+                        <input type="text" name="choices-${questionIndex}-${i}-choice_text" required>
+                        <label for="choices-${questionIndex}-${i}-is_correct">Correct:</label>
+                        <input type="checkbox" name="choices-${questionIndex}-${i}-is_correct"><br>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+            // Thêm trực tiếp HTML của câu hỏi vào container
+            container.innerHTML += questionHTML;
+
+            // Tăng chỉ số questionIndex
+            questionIndex += 1;
+            document.getElementById("question_count").value = questionIndex;
+        }
+    </script>
+</head>
+<body>
+<h1>Edit Test</h1>
+<form method="post" action="{% url 'edit_test' test_id=test_id %}">
+    {% csrf_token %}
+    <input type="hidden" id="question_count" name="question_count" value={{ question_count }}>
+    <h3>Test Information</h3>
+    <label for="title">Title:</label>
+    <input type="text" id="title" name="title" value="{{ test_form.initial.title }}" required><br>
+    <label for="description">Description:</label>
+    <input type="text" id="description" name="description" value="{{ test_form.initial.description }}"><br><br>
+
+    <h3>Questions</h3>
+    <div id="questions-container">
+        {% for question in question_data %}
+            <div class="question" id="question-{{ forloop.counter0 }}">
+                <label for="questions-{{ forloop.counter0 }}-question_text">Question:</label>
+                <input type="text" name="questions-{{ forloop.counter0 }}-question_text"
+                       value="{{ question.question_text }}" required><br>
+                <div class="choices">
+                    <h5>Choices</h5>
+                    {% for choice in question.choices %}
+                        <div class="choice">
+                            <label for="choices-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}-choice_text">{{ choice.1 }}</label>
+                            <input type="text"
+                                   name="choices-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}-choice_text"
+                                   value="{{ choice.1 }}" required>
+                            <label for="choices-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}-is_correct">Correct:</label>
+                            <input type="checkbox"
+                                   name="choices-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}-is_correct"
+                                   {% if choice.2 %}checked{% endif %}><br>
+                        </div>
+                        <input type="hidden" name="choices-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}-id"
+                               value="{{ choice.0 }}">
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="questions-{{ forloop.counter0 }}-id" value="{{ question.id }}">
+            </div>
+        {% endfor %}
+    </div>
+    <button type="button" onclick="addQuestion()">Add Another Question</button>
+    <br><br>
+    <button type="submit">Save Changes</button>
+</form>
+</body>
+</html>

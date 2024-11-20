@@ -24,11 +24,11 @@
             text-align: center;
             font-weight: bold;
             color: #333;
-            text-decoration: none;  /* Xóa gạch chân */
+            text-decoration: none; /* Xóa gạch chân */
         }
 
         .test-item:hover {
-            background-color: #e0e0e0;  /* Thay đổi màu khi hover */
+            background-color: #e0e0e0; /* Thay đổi màu khi hover */
         }
 
         .create-button {
@@ -48,12 +48,19 @@
     </style>
 </head>
 <body>
-    <h2>Available Tests</h2>
-    {% if is_teacher %}
+<h2>Available Tests</h2>
+{% if is_teacher %}
     <div>
         <a href="{% url 'create_test' %}" class="create-button">Create New Test</a>
+        <div class="test-grid">
+            {% for test in tests %}
+                <a href="{% url 'edit_test' test.0 %}" class="test-item">
+                    {{ test.1 }} <!-- Hiển thị tên bài kiểm tra -->
+                </a>
+            {% endfor %}
+        </div>
     </div>
-    {% endif %}
+{% else %}
     <div class="test-grid">
         {% for test in tests %}
             <a href="{% url 'test_detail' test.0 %}" class="test-item">
@@ -61,5 +68,7 @@
             </a>
         {% endfor %}
     </div>
+{% endif %}
+
 </body>
 </html>
