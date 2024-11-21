@@ -30,9 +30,9 @@ def login_view(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
-            logger.info('Login form is valid')
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
+
 
             conn = sqlite3.connect('db.sqlite3')
             cursor = conn.cursor()
@@ -41,7 +41,6 @@ def login_view(request):
             conn.close()
 
             if user_data:
-                logger.info('Login successful')
                 request.session['user_id'] = user_data[0]
                 if user_data[1] == 2:
                     request.session['is_teacher'] = True
@@ -49,11 +48,11 @@ def login_view(request):
                     request.session['is_teacher'] = False
                 return redirect('profile')
             else:
-                logger.error(request, 'Login failed. Please check your username and password.')
+                form.add_error('password','Mật khẩu không chính xác hoặc tài khoản không tồn tại.')
     else:
         form = LoginForm()
 
-    return render(request, 'registration/login.html', {'form': form})
+    return render(request, 'index/login.html', {'form': form})
 def logout_view(request):
     del request.session['user_id']
     return redirect('login')
@@ -69,17 +68,16 @@ def register_view(request):
             user_exists = cursor.fetchone()
 
             if user_exists:
-                messages.error(request, 'Username already exists. Please choose a different one.')
+                form.add_error('username', 'Username đã tồn tại.')
             else:
                 form.save()
-                messages.success(request, 'Your account has been created! You can now log in.')
                 return redirect('login')
 
             conn.close()
     else:
         form = RegisterForm()
 
-    return render(request, 'registration/register.html', {'form': form})
+    return render(request, 'index/register.html', {'form': form})
 @login_required
 def profile_view(request):
     user_id = request.session.get('user_id')
@@ -110,7 +108,7 @@ def profile_view(request):
     }
 
     # Render trang profile với thông tin người dùng
-    return render(request, 'registration/profile.html', context)
+    return render(request, 'index/profile.html', context)
 
 def check_session(request):
     data = request.session.items()
@@ -151,10 +149,6 @@ def create_test(request):
                 # Xử lý choices cho câu hỏi
                 for j in range(4):  # Mỗi câu hỏi có 4 choices
                     choice_text = request.POST.get(f'choices-{i}-{j}-choice_text')
-                    if choice_text is None:
-                        logger.error(f"Choice {j} is missing")
-                    else:
-                        logger.info(f"Choice {j}: {choice_text}")
                     is_correct = request.POST.get(f'choices-{i}-{j}-is_correct', False)
                     cursor.execute(
                         "INSERT INTO choices (choice_text, question_id, is_correct) VALUES (?, ?, ?)",

@@ -1,0 +1,380 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f4ff;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-page {
+    width: 100%;
+    max-width: 400px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    text-align: center;
+}
+
+.logo img {
+    max-width: 100px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.input-group {
+    margin-bottom: 15px;
+    position: relative;
+}
+
+input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 14px;
+    color: #999;
+}
+
+.forgot-password {
+    display: block;
+    margin: 10px 5px;
+    font-size: 14px;
+    text-decoration: none;
+    color: #007bff;
+    text-align: left;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+.btn-primary {
+    background-color: #0052cc;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    width: 100%;
+    font-size: 16px;
+    cursor: pointer;
+    margin-bottom: 15px;
+}
+
+.btn-primary:hover {
+    background-color: #003d99;
+}
+
+.button-group p {
+    font-size: 14px;
+    color: #555;
+    margin-left: 5px;
+    text-align: left;
+}
+
+.button-group p a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.divider {
+    margin: 10px 0;
+    color: #aaa;
+    font-size: 14px;
+}
+
+.social-login {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-google, .btn-qr {
+    flex: 1;
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-google:hover, .btn-qr:hover {
+    background-color: #f9f9f9;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f4ff;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.register-page {
+    width: 100%;
+    max-width: 400px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    text-align: center;
+}
+
+.logo img {
+    max-width: 100px;
+    margin-bottom: 20px;
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.tab {
+    flex: 1;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #555;
+    border-bottom: 2px solid transparent;
+    text-align: center;
+}
+
+.tab.active {
+    color: #000;
+    border-bottom: 2px solid #0052cc;
+    font-weight: bold;
+}
+
+h2 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.input-group {
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.error-text {
+    color: red;
+    font-size: 14px;
+    text-align: left;
+    margin-left: 5px;
+    font-stretch: normal;
+}
+
+input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 14px;
+    color: #999;
+}
+
+.btn-primary {
+    background-color: #0052cc;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    width: 100%;
+    font-size: 16px;
+    cursor: pointer;
+    margin-bottom: 15px;
+}
+
+.btn-primary:hover {
+    background-color: #003d99;
+}
+
+.divider {
+    margin: 10px 0;
+    color: #aaa;
+    font-size: 14px;
+}
+
+.social-login {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-google {
+    flex: 1;
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group + label {
+    display: block;
+    font-weight: bold;
+    text-align: left;
+    margin-left: 5px;
+}
+
+.register-form p {
+    font-size: 14px;
+    color: #555;
+    margin-left: 5px;
+    text-align: left;
+}
+
+.register-form p a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.profile-container {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    width: 600px;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.profile-header img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+.profile-header .upload-btn {
+    background-color: #004a9f;
+    color: white;
+    padding: 5px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.profile-header .upload-btn:hover {
+    background-color: #003f7f;
+}
+
+.profile-body {
+    margin-top: 20px;
+}
+
+.profile-body label {
+    font-weight: bold;
+    margin-top: 10px;
+    display: block;
+}
+
+.profile-body input, .profile-body select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
+
+.update-btn {
+    background-color: #0056b3;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    width: 100%;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.update-btn:hover {
+    background-color: #003f7f;
+}
+
+.test-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.test-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    height: 100px;
+    text-align: center;
+    font-weight: bold;
+    color: #333;
+    text-decoration: none; /* Xóa gạch chân */
+}
+
+.test-item:hover {
+    background-color: #e0e0e0; /* Thay đổi màu khi hover */
+}
+
+.create-button {
+    display: inline-block;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    background-color: #4CAF50;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.create-button:hover {
+    background-color: #45a049;
+}
+

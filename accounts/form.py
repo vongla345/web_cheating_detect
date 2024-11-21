@@ -4,28 +4,33 @@ import sqlite3
 
 
 class LoginForm(forms.Form):
-    username = forms.CharField(max_length=100, widget=forms.TextInput(attrs={
-        'class': 'form-control', 'placeholder': 'Username'
-    }))
-    password = forms.CharField(widget=forms.PasswordInput(attrs={
-        'class': 'form-control', 'placeholder': 'Password'
-    }))
+    username = forms.CharField(
+        max_length=255,
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập username'}),
+        error_messages={'required': 'Vui lòng nhập username.'}
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Mật khẩu'}),
+        required=True,
+        error_messages={'required': 'Vui lòng nhập mật khẩu.'}
+    )
 
 class RegisterForm(forms.Form):
-    username = forms.CharField(max_length=30, required=True)
-    first_name = forms.CharField(max_length=30, required=False)
-    last_name = forms.CharField(max_length=30, required=False)
-    email = forms.EmailField(max_length=254, required=True)
-    password1 = forms.CharField(widget=forms.PasswordInput, required=True)
-    password2 = forms.CharField(widget=forms.PasswordInput, required=True)
-
+    username = forms.CharField(max_length=255, required=True, widget=forms.TextInput(attrs={'placeholder': 'Nhập tên đăng nhập'}))
+    first_name = forms.CharField(max_length=255, required=False, widget=forms.TextInput(attrs={'placeholder': 'Họ'}))
+    last_name = forms.CharField(max_length=255, required=False, widget=forms.TextInput(attrs={'placeholder': 'Tên'}))
+    email = forms.EmailField(max_length=255, required=True, widget=forms.EmailInput(attrs={'placeholder': 'Nhập email'}))
+    password1 = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Nhập mật khẩu'}), required=True)
+    password2 = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Nhập lại mật khẩu'}), required=True)
+    role = forms.CharField(widget=forms.HiddenInput(), initial='student')
     def clean(self):
         cleaned_data = super().clean()
         password1 = cleaned_data.get("password1")
         password2 = cleaned_data.get("password2")
 
         if password1 and password2 and password1 != password2:
-            self.add_error('password2', "Passwords do not match.")
+            self.add_error('password2', "Mật khẩu không trùng khớp")
         return cleaned_data
 
     def save(self):
@@ -37,10 +42,16 @@ class RegisterForm(forms.Form):
         last_name = self.cleaned_data['last_name']
         email = self.cleaned_data['email']
         password = self.cleaned_data['password1']
+        role = self.cleaned_data['role']
+
+        if role == 'teacher':
+            role = 2
+        else:
+            role = 1
 
         # Thêm user vào database
-        cursor.execute("INSERT INTO users (username, first_name, last_name, email, password) VALUES (?, ?, ?, ?, ?)",
-                       (username, first_name, last_name, email, password))
+        cursor.execute("INSERT INTO users (username, first_name, last_name, email, password, role_id) VALUES (?, ?, ?, ?, ?,?)",
+                       (username, first_name, last_name, email, password, role))
         conn.commit()
         conn.close()
 

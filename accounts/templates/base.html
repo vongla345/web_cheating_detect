@@ -1,0 +1,198 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>{% block title %}Trang Web{% endblock %}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background-color: #0056b3;
+            color: white;
+            height: 100%;
+            width: 0;
+            position: fixed;
+            z-index: 1;
+            top: 0;
+            left: 0;
+            display: flex;
+            overflow-x: hidden;
+            flex-direction: column;
+            transition: 0.3s ease;
+            padding-left: 10px;
+        }
+
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 30px;
+            padding: 10px 0;
+            color: white;
+        }
+
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 10px;
+            display: block;
+            transition: background-color 0.3s;
+        }
+
+        .sidebar a:hover {
+            background-color: #003f7f;
+            border-radius: 5px;
+        }
+
+        .sidebar a.active {
+            background-color: #004a9f;
+            border-radius: 5px;
+        }
+
+        .sidebar .footer {
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        .sidebar .closebtn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .sidebar .closebtn:hover {
+            color: #bbb;
+        }
+
+        /* Toggle button */
+        .toggle-btn {
+            position: fixed; /* Cố định nút mở ở góc */
+            top: 10px;
+            left: 10px;
+            background-color: #0056b3;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: background-color 0.3s ease;
+        }
+
+        .toggle-btn:hover {
+            background-color: #003f7f;
+        }
+
+        /* Main content area */
+        .main-content {
+            padding-top: 50px; /* Để tránh nội dung bị đè bởi nút mở */
+            padding-left: 20px;
+            transition: margin-left 0.5s;
+        }
+
+        @media screen and (max-height: 450px) {
+            .sidebar {
+                padding-top: 15px;
+            }
+
+            .sidebar a {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Nút ẩn/hiện sidebar -->
+<button class="toggle-btn" id="open-btn" onclick="toggleNav()">☰</button>
+
+<div class="sidebar" id="sidebar">
+    <a href="javascript:void(0)" class="closebtn" onclick="toggleNav()">×</a>
+    <h2>Cài đặt tài khoản</h2>
+    <a href="{% url 'profile' %}" class="{% if request.path == '/accounts/profile/' %}active{% endif %}"
+       onclick="saveSidebarState()">Chung</a>
+    <a href="{% url 'test_list' %}" class="{% if request.path == '/accounts/test/' %}active{% endif %}"
+       onclick="saveSidebarState()">Danh sách bài kiểm tra</a>
+    <a href="#" onclick="saveSidebarState()">Đơn vị đo</a>
+    <a href="#" onclick="saveSidebarState()">Thống kê học tập</a>
+    <a href="{% url 'logout' %}" onclick="saveSidebarState()">Đăng xuất</a>
+</div>
+
+
+<!-- Main Content -->
+<div class="main-content" id="main-content">
+    {% block content %}
+        <!-- Nội dung từng trang sẽ được hiển thị ở đây -->
+    {% endblock %}
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const sidebar = document.getElementById("sidebar");
+        const main = document.getElementById("main-content");
+        const openBtn = document.getElementById("open-btn");
+
+        // Khôi phục trạng thái sidebar từ sessionStorage
+        const sidebarState = sessionStorage.getItem("sidebarState");
+        if (sidebarState === "open") {
+            sidebar.style.width = "250px";
+            sidebar.style.paddingLeft = "10px";
+            sidebar.style.transition = "0s";
+            main.style.transition = "0s";
+            main.style.marginLeft = "250px";
+            openBtn.style.display = "none";
+        } else {
+            sidebar.style.width = "0";
+            sidebar.style.paddingLeft = "0";
+            main.style.marginLeft = "0";
+            openBtn.style.display = "block";
+        }
+    });
+
+    function toggleNav() {
+        const sidebar = document.getElementById("sidebar");
+        const main = document.getElementById("main-content");
+        const openBtn = document.getElementById("open-btn");
+
+        if (sidebar.style.width === "250px") {
+            // Đóng sidebar
+            sidebar.style.width = "0";
+            sidebar.style.paddingLeft = "0";
+            main.style.marginLeft = "0";
+            openBtn.style.display = "block";
+            sessionStorage.setItem("sidebarState", "closed"); // Lưu trạng thái
+        } else {
+            // Mở sidebar
+            sidebar.style.width = "250px";
+            sidebar.style.paddingLeft = "10px";
+            sidebar.style.transition = "0.3s ease"; // Hiệu ứng chuyển động
+            main.style.transition = "margin-left 0.5s";
+            main.style.marginLeft = "250px";
+            openBtn.style.display = "none";
+            sessionStorage.setItem("sidebarState", "open"); // Lưu trạng thái
+        }
+    }
+
+    function saveSidebarState() {
+        // Lưu trạng thái sidebar vào sessionStorage khi nhấn vào link
+        sessionStorage.setItem("sidebarState", "open");
+    }
+
+
+
+</script>
+</body>
+</html>
