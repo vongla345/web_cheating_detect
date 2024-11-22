@@ -17,7 +17,6 @@ time.strftime('%Y-%m-%d %H:%M:%S')
 
 from django.db import connection
 
-
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
@@ -26,13 +25,14 @@ import logging
 from django.http import HttpResponse
 
 logger = logging.getLogger('django')
+
+
 def login_view(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
-
 
             conn = sqlite3.connect('db.sqlite3')
             cursor = conn.cursor()
@@ -48,14 +48,18 @@ def login_view(request):
                     request.session['is_teacher'] = False
                 return redirect('profile')
             else:
-                form.add_error('password','Mật khẩu không chính xác hoặc tài khoản không tồn tại.')
+                form.add_error('password', 'Mật khẩu không chính xác hoặc tài khoản không tồn tại.')
     else:
         form = LoginForm()
 
     return render(request, 'index/login.html', {'form': form})
+
+
 def logout_view(request):
     del request.session['user_id']
     return redirect('login')
+
+
 def register_view(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
@@ -78,6 +82,8 @@ def register_view(request):
         form = RegisterForm()
 
     return render(request, 'index/register.html', {'form': form})
+
+
 @login_required
 def profile_view(request):
     user_id = request.session.get('user_id')
@@ -88,7 +94,9 @@ def profile_view(request):
 
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
-    cursor.execute("SELECT username, email, first_name, last_name, phone, date_of_birth, gender, school_name, role_id FROM users WHERE id=?", (user_id,))
+    cursor.execute(
+        "SELECT username, email, first_name, last_name, phone, date_of_birth, gender, school_name, role_id FROM users WHERE id=?",
+        (user_id,))
     user_data = cursor.fetchone()
     conn.close()
 
@@ -110,6 +118,7 @@ def profile_view(request):
     # Render trang profile với thông tin người dùng
     return render(request, 'index/profile.html', context)
 
+
 def check_session(request):
     data = request.session.items()
     if data:
@@ -117,15 +126,24 @@ def check_session(request):
     else:
         return HttpResponse('Not logged in')
 
+
 def test_list(request):
-    conn  = sqlite3.connect('db.sqlite3')
+    conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tests")
+    is_teacher = request.session.get('is_teacher')
+    if is_teacher:
+        cursor.execute("SELECT id, title, description FROM tests WHERE created_by = ?",
+                       (request.session.get('user_id'),))
+    else:
+        cursor.execute(
+            "select t.id, t.title, t.description, u.id from tests t left join class c on t.class_id = c.id left join class_users cu on c.id = cu.class_id left join users u on cu.user_id = u.id where u.id = ?",
+            (request.session.get('user_id'),))
     tests = cursor.fetchall()
     conn.close()
-    is_teacher = request.session.get('is_teacher')
 
     return render(request, 'test/test_list.html', {'tests': tests, 'is_teacher': is_teacher})
+
+
 def create_test(request):
     if request.method == 'POST':
         test_form = TestForm(request.POST)
@@ -167,6 +185,8 @@ def create_test(request):
         'test_form': test_form,
         'question_formset': question_formset,
     })
+
+
 def upload_test(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         file = request.FILES['excel_file']
@@ -178,6 +198,8 @@ def upload_test(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
 def edit_test(request, test_id):
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
@@ -231,7 +253,8 @@ def edit_test(request, test_id):
                     logger.info(f"Updating question {question_id}")
                     cursor.execute("UPDATE questions SET question_text = ? WHERE id = ?", (question_text, question_id))
                 else:
-                    cursor.execute("INSERT INTO questions (test_id, question_text) VALUES (?, ?)", (test_id, question_text))
+                    cursor.execute("INSERT INTO questions (test_id, question_text) VALUES (?, ?)",
+                                   (test_id, question_text))
                     question_id = cursor.lastrowid  # Lấy ID của câu hỏi mới
 
                 # Cập nhật hoặc thêm mới lựa chọn cho câu hỏi
@@ -261,6 +284,7 @@ def edit_test(request, test_id):
         'question_count': len(question_data)  # Số lượng câu hỏi hiện tại
     })
 
+
 def test_detail(request, test_id):
     request.session['test_id'] = test_id
 
@@ -271,7 +295,8 @@ def test_detail(request, test_id):
     test = cursor.fetchone()
 
     if not test:
-        return HttpResponse("<h1>Test not found</h1><p>The test you are looking for does not exist.</p>", content_type="text/html")
+        return HttpResponse("<h1>Test not found</h1><p>The test you are looking for does not exist.</p>",
+                            content_type="text/html")
 
     cursor.execute('SELECT * FROM questions WHERE test_id=?', (test_id,))
     questions = cursor.fetchall()
@@ -290,7 +315,6 @@ def test_detail(request, test_id):
             'choices': choices
         })
 
-
     if request.method == 'POST':
         del request.session['test_id']
         total_question = len(questions_data)
@@ -305,21 +329,26 @@ def test_detail(request, test_id):
                 score += 1
         score_db = (score / total_question) * 10
         logger.info('Finish Test')
-        cursor.execute("UPDATE student_tests SET score = ?, end_time = ? where id = ? ", (score_db,datetime.now(), request.session['student_test_id']))
+        cursor.execute("UPDATE student_tests SET score = ?, end_time = ? where id = ? ",
+                       (score_db, datetime.now(), request.session['student_test_id']))
         conn.commit()
         conn.close()
 
         return render(request, 'test/result.html', {'score': score, 'total_question': total_question})
 
-    cursor.execute("INSERT INTO student_tests (student_id, test_id, start_time) VALUES (?, ?, ?)", (request.session['user_id'], test_id, datetime.now()))
+    cursor.execute("INSERT INTO student_tests (student_id, test_id, start_time) VALUES (?, ?, ?)",
+                   (request.session['user_id'], test_id, datetime.now()))
     conn.commit()
 
-    cursor.execute("SELECT id FROM student_tests WHERE student_id = ? AND test_id = ? ORDER BY start_time DESC", (request.session['user_id'], test_id))
+    cursor.execute("SELECT id FROM student_tests WHERE student_id = ? AND test_id = ? ORDER BY start_time DESC",
+                   (request.session['user_id'], test_id))
     student_test_id = cursor.fetchone()[0]
     request.session['student_test_id'] = student_test_id
 
     conn.close()
     return render(request, 'test/test_detail.html', {'test': test, 'questions_data': questions_data})
+
+
 @csrf_exempt
 def save_prediction(request):
     if request.method == 'POST':
@@ -366,5 +395,3 @@ def save_prediction(request):
             return JsonResponse({'status': 'failed', 'message': str(e)})
 
     return JsonResponse({'status': 'failed', 'message': 'Only POST requests allowed'})
-
-
