@@ -39,7 +39,7 @@
     </script>
 </head>
 <body>
-<h1>Edit Test</h1>
+<h1>Chỉnh sửa bài kiểm tra</h1>
 <form method="post" action="{% url 'edit_test' test_id=test_id %}">
     {% csrf_token %}
     <input type="hidden" id="question_count" name="question_count" value={{ question_count }}>

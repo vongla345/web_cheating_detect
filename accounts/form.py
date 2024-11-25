@@ -68,3 +68,4 @@ QuestionFormSet = formset_factory(QuestionForm, min_num=0, extra=0)
 class TestForm(forms.Form):
     title = forms.CharField(max_length=255, required=True, label="Test Title")
     description = forms.CharField(max_length=255, required=False, label="Description")
+    amount_of_time = forms.IntegerField(required=True, label="Amount of time")

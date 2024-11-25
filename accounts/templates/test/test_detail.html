@@ -1,36 +1,49 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phòng chờ và Bài kiểm tra</title>
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Phòng chờ và Bài kiểm tra{% endblock %}
+
+{% block content %}
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     <script type="text/javascript">
         const URL = "https://teachablemachine.withgoogle.com/models/vnE0p8Dih/";
-        let model, webcam, maxPredictions;
+        let model, webcam, maxPredictions, labelContainer;
         let isPredicting = false;  // Biến kiểm soát trạng thái dự đoán
+        let isCameraRunning = false;
 
         async function initCamera() {
-            const modelURL = URL + "model.json";
-            const metadataURL = URL + "metadata.json";
+            try {
+                document.getElementById("checting-detect-container").style.display = "block";
 
-            model = await tmImage.load(modelURL, metadataURL);
-            maxPredictions = model.getTotalClasses();
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
 
-            const flip = true;
-            webcam = new tmImage.Webcam(200, 200, flip);
-            await webcam.setup();
-            await webcam.play();
-            document.getElementById("webcam-container").appendChild(webcam.canvas);
-            window.requestAnimationFrame(loop);
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
 
-            document.getElementById("webcam-container").appendChild(webcam.canvas);
-            labelContainer = document.getElementById("label-container");
-            for (let i = 0; i < maxPredictions; i++) { // and class labels
-                labelContainer.appendChild(document.createElement("div"));
+                const flip = true;
+                webcam = new tmImage.Webcam(200, 200, flip);
+                await webcam.setup();
+                await webcam.play();
+
+                // Thêm canvas của webcam vào container
+                window.requestAnimationFrame(loop);
+
+                // Thêm các nhãn lớp dự đoán
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                labelContainer = document.getElementById("label-container");
+                for (let i = 0; i < maxPredictions; i++) {
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+
+                // Camera khởi tạo thành công
+                isCameraRunning = true;
+            } catch (error) {
+                alert("Không thể khởi tạo camera hoặc tải mô hình. Vui lòng kiểm tra lại.");
+                console.error("Camera initialization error:", error);
             }
         }
+
 
         async function loop() {
             webcam.update();
@@ -40,14 +53,6 @@
             window.requestAnimationFrame(loop);
         }
 
-        function startTest() {
-            // Ẩn phần waiting room (chỉ ẩn các nút), hiển thị phần test detail
-            document.getElementById("start-buttons").style.display = "none";
-            document.getElementById("test-detail").style.display = "block";
-
-            // Bắt đầu dự đoán khi người dùng đồng ý kiểm tra
-            isPredicting = true;
-        }
 
         let dataBuffer = [];  // Mảng tạm lưu trữ dữ liệu
         let lastSentTime = 0;  // Thời gian gửi dữ liệu cuối cùng
@@ -60,6 +65,7 @@
             // Loop through predictions and store them in buffer
             for (let i = 0; i < maxPredictions; i++) {
                 const classPrediction = prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
 
                 // Store prediction data
                 dataBuffer.push({
@@ -90,57 +96,200 @@
             const result = await response.json();
             console.log(result);  // Log phản hồi từ server
         }
+
+        let remainingTime;  // Tổng thời gian còn lại (giây)
+        let timerInterval;
+
+        function startTest() {
+            if (!isCameraRunning) {
+                alert("Vui lòng bật camera trước khi bắt đầu bài kiểm tra.");
+                return;
+            }
+            const historyTestContainer = document.getElementById("history-test-container");
+            if (historyTestContainer.style.display === "block") {
+                historyTestContainer.style.display = "none";
+            }
+            // Gửi yêu cầu tới backend để khởi tạo bài kiểm tra
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: new URLSearchParams({action: 'start_test'}),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.status === 'started') {
+                        // Hiển thị bộ đếm thời gian và form bài kiểm tra
+                        document.getElementById('start-test-btn').style.display = 'none';
+                        document.getElementById('timer-container').style.display = 'block';
+                        document.getElementById('test-form').style.display = 'block';
+                        document.getElementById("waiting-room").style.display = "none";
+                        document.getElementById("history-button").style.display = "none";
+                        document.getElementById("test-detail").style.display = "block";
+
+                        // Bắt đầu đếm ngược thời gian
+                        isPredicting = true;
+
+                        remainingTime = data.test_duration * 60;  // Chuyển từ phút sang giây
+                        startCountdown();
+                    }
+                });
+        }
+
+        function startCountdown() {
+            const timerElement = document.getElementById('timer');
+
+            timerInterval = setInterval(() => {
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    alert('Hết thời gian! Bài kiểm tra sẽ tự động nộp.');
+                    document.getElementById('test-form').submit();  // Tự động nộp bài
+                } else {
+                    const minutes = Math.floor(remainingTime / 60);
+                    const seconds = remainingTime % 60;
+                    timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    remainingTime--;
+                }
+            }, 1000);
+        }
+
+        function viewHistory() {
+            const historyTestContainer = document.getElementById("history-test-container");
+            if (historyTestContainer.style.display === "block") {
+                historyTestContainer.style.display = "none";
+            } else {
+                historyTestContainer.style.display = "block";
+            }
+        }
+
+        let formSubmitted = false;
+
+        // Xử lý sự kiện beforeunload
+        document.addEventListener("visibilitychange", () => {
+            if (isPredicting && document.hidden && !formSubmitted) {
+                if (confirm("Bạn đang rời khỏi bài kiểm tra. Nếu tiếp tục, bài kiểm tra sẽ tự động nộp.")) {
+                    submitForm();
+                }
+            }
+        });
+
+        window.addEventListener("unload", () => {
+            console.log("unload event triggered"); // Kiểm tra sự kiện unload
+            if (isPredicting && !formSubmitted) {
+                submitForm();
+            }
+        });
+
+        // Hàm nộp form
+        function submitForm() {
+            const form = document.getElementById("test-form");
+            if (form) {
+                form.submit();
+                formSubmitted = true; // Đánh dấu đã nộp bài
+            }
+        }
+
     </script>
-    <style>
-        #webcam-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 200px;
-            height: 200px;
-            border: 1px solid #ddd;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-        }
 
-        #webcam-container img {
-            width: 100%;
-            height: 100%;
-            border-radius: 5px;
-        }
-
-        #test-detail {
-            display: none; /* Ẩn phần bài kiểm tra lúc đầu */
-        }
-    </style>
-</head>
-<body>
-<h2>Test {{ test.0 }}</h2>
-<div id="waiting-room">
-    <h2>Kiểm tra Camera</h2>
-    <div id="webcam-container"></div>
-    <div id="start-buttons">
-        <button onclick="initCamera()">Bật Camera</button>
-        <button onclick="startTest()">Đồng ý và Bắt đầu Kiểm tra</button>
-    </div>
-</div>
-
-<div id="test-detail">
-    <form method="post">
-        {% csrf_token %}
-        {% for question in questions_data %}
-            <div class="question">
-                <p><strong>{{ question.question_text }}</strong></p>
-                {% for choice in question.choices %}
-                    <label>
-                        <input type="radio" name="{{ question.id }}" value="{{ choice.0 }}">
-                        {{ choice.1 }}
-                    </label><br>
-                {% endfor %}
+    <div id="test-page">
+        <div id="timer-container">
+            <span id="timer-label">Thời gian còn lại:</span>
+            <span id="timer"></span>
+        </div>
+        <div id="checting-detect-container">
+            <div id="webcam-container"></div>
+            <div id="label-container"></div>
+        </div>
+        <h2>{{ test.1 }}</h2>
+        <div id="waiting-room">
+            <div class="info">
+                <div><i class="fa fa-clock-o"></i> Thời gian làm bài: {{ test.3 }} phút</div>
+                <div><i class="fa fa-list"></i> Số lượng câu hỏi: {{ questions_data|length }} </div>
+                <div><i class="fa fa-file-text"></i> Loại đề: Trắc nghiệm</div>
             </div>
-        {% endfor %}
-        <button type="submit">Submit</button>
-    </form>
-</div>
-</body>
-</html>
+            <div id="timer-container" style="display: none;">
+                <span id="timer-label">Thời gian còn lại:</span>
+                <span id="timer">40:00</span>
+            </div>
+            <div id="start-buttons">
+                <button onclick="initCamera()">Bật Camera</button>
+                <button id="start-test-btn" onclick="startTest()">Bắt đầu Kiểm tra</button>
+            </div>
+        </div>
+        <button id="history-button" onclick="viewHistory()">Xem lịch sử làm bài</button>
+        <div id="history-test-container">
+            {% for his_test in history_student_test %}
+                <div id="history-test">
+                    <p class="score-his">Điểm của bạn: <span>{{ his_test.2 }}</span></p>
+                    <div class="row">
+                        <img src="{% static "assets/clock.png" %}" alt="Thời gian làm bài" class="icon">
+                        <span class="label">Thời gian làm bài</span>
+                        <span class="value">{{ his_test.0 }}</span>
+                    </div>
+                    <div class="row">
+                        <img src="{% static "assets/tasks.png" %}" alt="Thời gian nộp bài" class="icon">
+                        <span class="label">Thời gian nộp bài</span>
+                        <span class="value">{{ his_test.1 }}</span>
+                    </div>
+                    <div class="row">
+                        <img src="{% static "assets/danger.png" %}" alt="Tổng số câu hỏi trong đề" class="icon">
+                        <span class="label">Tổng số câu hỏi trong đề</span>
+                        <span class="value">{{ questions_data|length }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div id="test-detail">
+            <form id="test-form" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="submit_test">
+                <!-- Phần hiển thị câu hỏi -->
+                <div id="questions-container">
+                    {% for question in questions_data %}
+                        <div class="question" id="question-{{ question.id }}" style="display: none;">
+                            <h2 class="question-title">Câu {{ forloop.counter }}: {{ question.question_text }}</h2>
+                            {% for choice in question.choices %}
+                                <label class="answer-choice choice-wrapper">
+                                    <input type="radio" name="{{ question.id }}" value="{{ choice.0 }}"
+                                           onchange="updateQuestionStatus({{ question.id }})">
+                                    <span class="choice-label">{{ choice.4 }}</span>
+                                    <span class="choice-text">{{ choice.1 }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="navigation-buttons">
+                    <button type="button" onclick="prevQuestion()" id="prev-btn" class="nav-btn">
+                        <i class="fas fa-arrow-left"></i> Câu trước
+                    </button>
+                    <button type="button" onclick="nextQuestion()" id="next-btn" class="nav-btn">
+                        Câu sau <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <!-- Bảng danh sách câu hỏi -->
+                <div id="question-grid">
+                    {% for question in questions_data %}
+                        <button type="button" class="question-btn" id="question-btn-{{ question.id }}"
+                                onclick="showQuestion({{ question.id }})">
+                            {{ forloop.counter }}
+                        </button>
+                    {% endfor %}
+                </div>
+
+                <div class="submit-container">
+                    <button type="submit" class="submit-btn" onclick="return checkCompletion()">
+                        <i class="fas fa-paper-plane"></i> Nộp bài
+                    </button>
+                </div>
+            </form>
+        </div>
+        <script src="{% static 'js/script.js' %}"></script>
+    </div>
+
+
+{% endblock %}

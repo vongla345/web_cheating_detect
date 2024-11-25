@@ -1,4 +1,7 @@
 from datetime import datetime
+
+from pydantic.schema import timedelta
+import random
 from .helpers import process_excel
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
@@ -8,12 +11,11 @@ from django.http import StreamingHttpResponse, JsonResponse
 import sqlite3
 import json
 import time
+from datetime import datetime
 
 from .form import TestForm, QuestionForm, ChoiceForm
 from .models import Test, Question, Choice
 from django.forms import formset_factory
-
-time.strftime('%Y-%m-%d %H:%M:%S')
 
 from django.db import connection
 
@@ -136,7 +138,7 @@ def test_list(request):
                        (request.session.get('user_id'),))
     else:
         cursor.execute(
-            "select t.id, t.title, t.description, u.id from tests t left join class c on t.class_id = c.id left join class_users cu on c.id = cu.class_id left join users u on cu.user_id = u.id where u.id = ?",
+            "select t.id, t.title, t.description, c.name, cu.id from tests t left join class_tests ct on t.id = ct.test_id left join class c on ct.class_id = c.id left join class_users cu on c.id = cu.class_id where cu.user_id = ? order by c.id",
             (request.session.get('user_id'),))
     tests = cursor.fetchall()
     conn.close()
@@ -156,7 +158,9 @@ def create_test(request):
             # Lưu bài kiểm tra
             title = test_form.cleaned_data['title']
             description = test_form.cleaned_data['description']
-            cursor.execute("INSERT INTO tests (title, description) VALUES (?, ?)", (title, description))
+            amount_of_time = test_form.cleaned_data['amount_of_time']
+            cursor.execute("INSERT INTO tests (title, description,amount_of_time,created_by) VALUES (?, ?, ?, ?)",
+                           (title, description, amount_of_time, request.session.get('user_id')))
             test_id = cursor.lastrowid
 
             for i, question_form in enumerate(question_formset):
@@ -291,6 +295,7 @@ def test_detail(request, test_id):
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
 
+    # Lấy thông tin bài thi
     cursor.execute("SELECT * FROM tests WHERE id=?", (test_id,))
     test = cursor.fetchone()
 
@@ -298,9 +303,11 @@ def test_detail(request, test_id):
         return HttpResponse("<h1>Test not found</h1><p>The test you are looking for does not exist.</p>",
                             content_type="text/html")
 
+    test_duration = test[3]  # Giả sử thời gian làm bài (phút) ở cột thứ 3
     cursor.execute('SELECT * FROM questions WHERE test_id=?', (test_id,))
     questions = cursor.fetchall()
-
+    questions = [list(question) for question in questions]
+    random.shuffle(questions)
     questions_data = []
     for question in questions:
         question_id = question[0]
@@ -308,45 +315,100 @@ def test_detail(request, test_id):
 
         cursor.execute("SELECT * FROM choices WHERE question_id=?", (question_id,))
         choices = cursor.fetchall()
+        choices = [list(choice) for choice in choices]
+
+        random.shuffle(choices)
+
+        choice_label = ['A', 'B', 'C', 'D']
+        for i, choice in enumerate(choices):
+            choices[i].append(choice_label[i])
 
         questions_data.append({
             'id': question_id,
             'question_text': question_text,
             'choices': choices
         })
+    cursor.execute(
+        "SELECT * FROM student_tests WHERE student_id = ? AND test_id = ? AND end_time not null ORDER BY end_time DESC",
+        (request.session['user_id'], test_id))
+    history_student_test = cursor.fetchall()
+    history_student_test = [list(i) for i in history_student_test]
+    for i in history_student_test:
+        i[3] = datetime.strptime(i[3], "%Y-%m-%d %H:%M:%S.%f")
+        i[3] = i[3] + timedelta(hours=7)
+        i[3] = i[3].strftime("%Y/%m/%d %H:%M")
+
+        i[4] = datetime.strptime(i[4], "%Y-%m-%d %H:%M:%S.%f")
+        i[4] = i[4] + timedelta(hours=7)
+        i[4] = i[4].strftime("%Y/%m/%d %H:%M")
+    history_student_test = [[i[3], i[4], i[5]] for i in history_student_test]
 
     if request.method == 'POST':
-        del request.session['test_id']
-        total_question = len(questions_data)
-        score = 0
+        action = request.POST.get('action')
 
-        for question in questions_data:
-            question_id = str(question['id'])
-            correct_answer = next((choice[0] for choice in question['choices'] if choice[3]), None)
-            user_answer = request.POST.get(question_id)
+        # Người dùng bắt đầu bài thi
+        if action == 'start_test':
+            cursor.execute("INSERT INTO student_tests (student_id, test_id, start_time) VALUES (?, ?, ?)",
+                           (request.session['user_id'], test_id, datetime.now()))
+            conn.commit()
 
-            if user_answer and int(user_answer) == correct_answer:
-                score += 1
-        score_db = (score / total_question) * 10
-        logger.info('Finish Test')
-        cursor.execute("UPDATE student_tests SET score = ?, end_time = ? where id = ? ",
-                       (score_db, datetime.now(), request.session['student_test_id']))
-        conn.commit()
-        conn.close()
+            # Lấy ID của lần làm bài vừa tạo
+            cursor.execute("SELECT id FROM student_tests WHERE student_id = ? AND test_id = ? ORDER BY start_time DESC",
+                           (request.session['user_id'], test_id))
+            student_test_id = cursor.fetchone()[0]
+            request.session['student_test_id'] = student_test_id
 
-        return render(request, 'test/result.html', {'score': score, 'total_question': total_question})
+            conn.close()
+            return JsonResponse({'status': 'started', 'test_duration': test_duration})
 
-    cursor.execute("INSERT INTO student_tests (student_id, test_id, start_time) VALUES (?, ?, ?)",
-                   (request.session['user_id'], test_id, datetime.now()))
-    conn.commit()
+        # Người dùng nộp bài thi
+        elif action == 'submit_test':
+            del request.session['test_id']
+            total_question = len(questions_data)
+            score = 0
 
-    cursor.execute("SELECT id FROM student_tests WHERE student_id = ? AND test_id = ? ORDER BY start_time DESC",
-                   (request.session['user_id'], test_id))
-    student_test_id = cursor.fetchone()[0]
-    request.session['student_test_id'] = student_test_id
+            for question in questions_data:
+                question_id = str(question['id'])
+                correct_answer = next((choice[0] for choice in question['choices'] if choice[3]), None)
+                user_answer = request.POST.get(question_id)
+
+                if user_answer and int(user_answer) == correct_answer:
+                    score += 1
+            score_db = (score / total_question) * 10
+            cursor.execute("UPDATE student_tests SET score = ?, end_time = ? WHERE id = ?",
+                           (score_db, datetime.now(), request.session['student_test_id']))
+            cursor.execute("SELECT * FROM student_tests WHERE id = ?", (request.session['student_test_id'],))
+
+            student_test = cursor.fetchone()
+            student_test = list(student_test)
+
+            student_test[3] = datetime.strptime(student_test[3], "%Y-%m-%d %H:%M:%S.%f")
+            student_test[3] = student_test[3] + timedelta(hours=7)
+            student_test[3] = student_test[3].strftime("%Y/%m/%d %H:%M")
+
+            student_test[4] = datetime.strptime(student_test[4], "%Y-%m-%d %H:%M:%S.%f")
+            student_test[4] = student_test[4] + timedelta(hours=7)
+            student_test[4] = student_test[4].strftime("%Y/%m/%d %H:%M")
+
+            cursor.execute("SELECT first_name, last_name FROM users WHERE id = ?", (request.session.get('user_id'),))
+            student_name = cursor.fetchone()
+            student_test.append(student_name[0] + ' ' + student_name[1])
+
+            test_name = test[1]
+
+            student_test.append(score)
+            student_test.append(total_question - score)
+            student_test.append(total_question)
+            student_test.append(test_name)
+
+            conn.commit()
+            conn.close()
+
+            return render(request, 'test/result.html', {'student_test': student_test, 'total_question': total_question})
 
     conn.close()
-    return render(request, 'test/test_detail.html', {'test': test, 'questions_data': questions_data})
+    return render(request, 'test/test_detail.html',
+                  {'test': test, 'questions_data': questions_data, 'history_student_test': history_student_test})
 
 
 @csrf_exempt
