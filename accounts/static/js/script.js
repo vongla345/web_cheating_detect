@@ -78,3 +78,4 @@ function checkCompletion() {
 
     return allAnswered;
 }
+

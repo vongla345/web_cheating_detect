@@ -21,7 +21,6 @@ def process_excel(file):
             questions.append(current_question)
         # Thêm choice vào câu hỏi hiện tại
         if current_question:
-            print(row['Is Correct'])
             is_correct = str(row['Is Correct']).strip().upper() == '1.0'
             current_question['choices'].append({
                 'choice_text': row['Choice Text'],

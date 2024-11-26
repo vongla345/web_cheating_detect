@@ -3,15 +3,12 @@
 {% block title %}Tạo bài kiểm tra{% endblock %}
 
 {% block content %}
-    <style>
-    </style>
     <div class="create-test-container">
         <h1>Tạo bài kiểm tra mới</h1>
         <form method="post" enctype="multipart/form-data" action="{% url 'upload_test' %}">
             {% csrf_token %}
             <h3>Upload Questions from Excel</h3>
             <input type="file" id="excel_file" name="excel_file" accept=".xlsx" onchange="handleFileUpload(event)">
-            <button class="upload-btn" type="button">Upload File</button>
         </form>
 
         <form method="post" action="{% url 'create_test' %}" class="create-test-form">
@@ -23,7 +20,15 @@
             <input type="text" id="description" name="description">
             <label for="amount_of_time">Amount of time:</label>
             <input type="text" id="amount_of_time" name="amount_of_time" placeholder="Tính theo phút" required>
-
+            <div>
+                <h3>Select Classes</h3>
+                {% for class in classes %}
+                    <div>
+                        <input type="checkbox" id="class-{{ class.0 }}" name="class_ids" value="{{ class.0 }}">
+                        <label for="class-{{ class.0 }}"> {{ class.1 }} </label>
+                    </div>
+                {% endfor %}
+            </div>
             <h3>Questions</h3>
             <div id="questions-container">
                 {{ question_formset.management_form }}
@@ -69,28 +74,29 @@
             const grid = document.getElementById("question-grid");
 
             const questionHTML = `
-            <div class="question" id="question-${questionIndex}">
-                <h4>Question ${questionIndex + 1}</h4>
-                <label for="id_questions-${questionIndex}-question_text">Question:</label>
-                <input type="text" name="questions-${questionIndex}-question_text" id="id_questions-${questionIndex}-question_text" required><br>
+        <div class="question" id="question-${questionIndex}">
+            <h4>Question ${questionIndex + 1}</h4>
+            <label for="id_questions-${questionIndex}-question_text">Question:</label>
+            <input type="text" name="questions-${questionIndex}-question_text" id="id_questions-${questionIndex}-question_text" required><br>
 
-                <div class="choices">
-                    <h5>Choices</h5>
-                    ${[...Array(4)].map((_, i) => `
-                        <div class="choice">
-                            <label for="id_choices-${questionIndex}-${i}-choice_text">Choice ${i + 1}:</label>
-                            <input type="text" name="choices-${questionIndex}-${i}-choice_text" id="id_choices-${questionIndex}-${i}-choice_text" required>
-                            <label for="id_choices-${questionIndex}-${i}-is_correct">Correct:</label>
-                            <input type="checkbox" name="choices-${questionIndex}-${i}-is_correct" id="id_choices-${questionIndex}-${i}-is_correct"><br>
-                        </div>
-                    `).join('')}
-                </div>
-<div class="question-actions">
+            <div class="choices">
+                <h5>Choices</h5>
+                ${[...Array(4)].map((_, i) => `
+                    <div class="choice">
+                        <label for="id_choices-${questionIndex}-${i}-choice_text">Choice ${i + 1}:</label>
+                        <input type="text" name="choices-${questionIndex}-${i}-choice_text" id="id_choices-${questionIndex}-${i}-choice_text" required>
+                        <label for="id_choices-${questionIndex}-${i}-is_correct">Correct:</label>
+                        <input type="checkbox" name="choices-${questionIndex}-${i}-is_correct" id="id_choices-${questionIndex}-${i}-is_correct"><br>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="question-actions">
                 <button type="button" class="btn-delete" onclick="deleteQuestion(${questionIndex})">Delete Question</button>
                 <button type="button" class="btn-clear" onclick="clearContent(${questionIndex})">Clear Content</button>
             </div>
-            </div>
-        `;
+        </div>
+    `;
 
             const questionDiv = document.createElement("div");
             questionDiv.innerHTML = questionHTML;
@@ -107,12 +113,8 @@
 
             questionIndex += 1;
             document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
-            const testContainer = document.querySelector('.create-test-container');
-            const maxHeight = 1500; // Chiều cao tối đa tính bằng pixel
-            testContainer.style.height = testContainer.scrollHeight > maxHeight
-                ? `${maxHeight}px`
-                : `${testContainer.scrollHeight}px`;
         }
+
 
         function handleFileUpload(event) {
             const fileInput = event.target;
@@ -129,7 +131,10 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        data.questions.forEach(addQuestionFromExcel);
+                        // Duyệt qua từng câu hỏi và thêm vào giao diện
+                        data.questions.forEach(questionData => {
+                            addQuestionFromExcel(questionData);
+                        });
                     } else {
                         alert(`Error: ${data.error}`);
                     }
@@ -140,8 +145,10 @@
                 });
         }
 
+
         function addQuestionFromExcel(questionData) {
-            addQuestion();
+            addQuestion(); // Thêm một câu hỏi mới trước
+
             const currentQuestion = document.getElementById(`question-${questionIndex - 1}`);
             currentQuestion.querySelector(`#id_questions-${questionIndex - 1}-question_text`).value = questionData.question_text;
 
@@ -156,38 +163,33 @@
             showQuestion(questionIndex - 1);
         }
 
-        function deleteQuestion(index) {
-            // Xóa câu hỏi khỏi container
-            const questionDiv = document.getElementById(`question-${index}`);
-            const questionBtnDiv = document.getElementById(`question-btn-container-${index}`);
 
+        function deleteQuestion(index) {
+            // Xóa câu hỏi khỏi form
+            console.log(index);
+            const questionDiv = document.getElementById(`question-${index}`);
             if (questionDiv) {
                 questionDiv.remove();
             }
-            if (questionBtnDiv) {
-                questionBtnDiv.remove();
+
+            // Xóa nút khỏi grid
+            const buttonDiv = document.getElementById(`question-btn-${index}`);
+            if (buttonDiv) {
+                buttonDiv.remove();
             }
 
-            // Tự động hiển thị câu hỏi khác
-            const remainingQuestions = document.querySelectorAll('.question');
-            const totalQuestions = remainingQuestions.length;
-
+            // Hiển thị câu hỏi khác sau khi xóa
+            const totalQuestions = document.querySelectorAll('.question').length;
+            updateQuestionIndexes();
             if (totalQuestions > 0) {
                 if (index < totalQuestions) {
-                    // Hiển thị câu hỏi liền kề sau câu bị xóa
+                    // Hiển thị câu hỏi liền kề
                     showQuestion(index);
                 } else {
-                    // Nếu là câu cuối cùng, hiển thị câu trước đó
+                    // Hiển thị câu hỏi trước đó nếu không có câu liền kề
                     showQuestion(index - 1);
                 }
             }
-
-            // Cập nhật lại tổng số câu hỏi
-            questionIndex -= 1;
-            document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
-
-            // Cập nhật lại các nút và chỉ số
-            updateQuestionIndexes();
         }
 
 
@@ -209,25 +211,55 @@
             const buttons = document.querySelectorAll('.new-question-btn');
 
             questions.forEach((question, i) => {
+                // Cập nhật ID và tiêu đề câu hỏi
                 question.id = `question-${i}`;
-                question.querySelector('h4').textContent = `Question ${i + 1}`;
+                const questionTitle = question.querySelector('h4');
+                if (questionTitle) {
+                    questionTitle.textContent = `Question ${i + 1}`;
+                }
+
+                // Cập nhật ID của các trường input và label trong form
+                const inputs = question.querySelectorAll('input, label');
+                inputs.forEach(input => {
+                    const oldId = input.id;
+                    const oldName = input.name;
+
+                    if (oldId) {
+                        input.id = oldId.replace(/questions-\d+-/, `questions-${i}-`);
+                    }
+                    if (oldName) {
+                        input.name = oldName.replace(/questions-\d+-/, `questions-${i}-`);
+                    }
+                });
+
+                // Cập nhật nút delete và clear content
+                const deleteButton = question.querySelector('.btn-delete');
+                const clearButton = question.querySelector('.btn-clear');
+                if (deleteButton) {
+                    deleteButton.setAttribute('onclick', `deleteQuestion(${i})`);
+                }
+                if (clearButton) {
+                    clearButton.setAttribute('onclick', `clearContent(${i})`);
+                }
             });
 
             buttons.forEach((button, i) => {
+                // Cập nhật ID và nội dung nút
                 button.id = `question-btn-${i}`;
                 button.setAttribute('onclick', `showQuestion(${i})`);
                 button.textContent = i + 1;
 
+                // Cập nhật ID của container chứa nút
                 const btnContainer = button.closest('.question-btn-container');
                 if (btnContainer) {
                     btnContainer.id = `question-btn-container-${i}`;
                 }
             });
 
-            // Cập nhật lại index tổng số câu hỏi
+            // Cập nhật tổng số câu hỏi
             questionIndex = questions.length;
+            document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
         }
-
 
     </script>
 {% endblock %}

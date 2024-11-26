@@ -147,14 +147,17 @@ def test_list(request):
 
 
 def create_test(request):
+    conn = sqlite3.connect('db.sqlite3')
+    cursor = conn.cursor()
+    cursor.execute(
+        'select c.id, c.name, user_id from class_users left join class c on c.id = class_users.class_id where user_id = ?',
+        (request.session.get('user_id'),))
+    classes = cursor.fetchall()
     if request.method == 'POST':
         test_form = TestForm(request.POST)
         question_formset = QuestionFormSet(request.POST, prefix='questions')
 
         if test_form.is_valid() and question_formset.is_valid():
-            conn = sqlite3.connect('db.sqlite3')
-            cursor = conn.cursor()
-
             # Lưu bài kiểm tra
             title = test_form.cleaned_data['title']
             description = test_form.cleaned_data['description']
@@ -162,6 +165,19 @@ def create_test(request):
             cursor.execute("INSERT INTO tests (title, description,amount_of_time,created_by) VALUES (?, ?, ?, ?)",
                            (title, description, amount_of_time, request.session.get('user_id')))
             test_id = cursor.lastrowid
+
+            selected_class_ids = request.POST.getlist('class_ids')  # Trả về danh sách các class_id được chọn
+
+            # Kiểm tra danh sách các class_id
+            if selected_class_ids:
+                for class_id in selected_class_ids:
+                    logger.info(f"Selected class ID: {class_id}")
+                    cursor.execute(
+                        "INSERT INTO class_tests (class_id, test_id) VALUES (?, ?)",
+                        (class_id, test_id)
+                    )
+            else:
+                logger.info("No classes selected!")
 
             for i, question_form in enumerate(question_formset):
                 question_text = question_form.cleaned_data['question_text']
@@ -185,9 +201,13 @@ def create_test(request):
         test_form = TestForm()
         question_formset = QuestionFormSet(prefix='questions')
 
+    conn.commit()
+    conn.close()
+
     return render(request, 'test/create_test.html', {
         'test_form': test_form,
         'question_formset': question_formset,
+        'classes': classes,
     })
 
 
@@ -197,7 +217,7 @@ def upload_test(request):
         try:
             # Gọi hàm xử lý file Excel
             questions = process_excel(file)
-            return JsonResponse({'success': True, 'questions': questions})
+            return JsonResponse({'success': True, 'questions': questions, 'total_questions': len(questions)})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
