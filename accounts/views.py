@@ -96,10 +96,36 @@ def profile_view(request):
 
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
+    if request.method == 'POST':
+        # Lấy dữ liệu từ form
+        phone = request.POST.get('phone')
+        date_of_birth = request.POST.get('birthdate')
+        gender = request.POST.get('gender')
+        school_name = request.POST.get('school_info')
+
+        # Cập nhật vào database
+        try:
+            cursor.execute(
+                """
+                UPDATE users
+                SET phone = ?, date_of_birth = ?, gender = ?, school_name = ?
+                WHERE id = ?
+                """,
+                (phone, date_of_birth, gender, school_name, user_id)
+            )
+            conn.commit()
+            logger.info('Thông tin đã được cập nhật thành công!')
+        except Exception as e:
+            logger.error(f"Lỗi khi cập nhật thông tin: {e}")
+        finally:
+            conn.close()
+
+        return redirect('profile')  # Load lại trang profile sau khi cập nhật
     cursor.execute(
         "SELECT username, email, first_name, last_name, phone, date_of_birth, gender, school_name, role_id FROM users WHERE id=?",
         (user_id,))
     user_data = cursor.fetchone()
+    user_data = list(user_data)
     conn.close()
 
     if not user_data:
@@ -277,11 +303,14 @@ def edit_test(request, test_id):
             conn = sqlite3.connect('db.sqlite3')
             cursor = conn.cursor()
 
-            cursor.execute("DELETE FROM choices WHERE question_id IN (SELECT id FROM questions WHERE test_id = ?)",(test_id,))
+            cursor.execute("DELETE FROM choices WHERE question_id IN (SELECT id FROM questions WHERE test_id = ?)",
+                           (test_id,))
             cursor.execute("DELETE FROM questions WHERE test_id = ?", (test_id,))
             cursor.execute("DELETE FROM tests WHERE id = ?", (test_id,))
             cursor.execute("DELETE FROM class_tests WHERE test_id = ?", (test_id,))
-            cursor.execute("DELETE FROM monitoring_data WHERE student_test_id IN (SELECT id FROM student_tests WHERE test_id = ?)", (test_id,))
+            cursor.execute(
+                "DELETE FROM monitoring_data WHERE student_test_id IN (SELECT id FROM student_tests WHERE test_id = ?)",
+                (test_id,))
             cursor.execute("DELETE FROM student_tests WHERE test_id = ?", (test_id,))
             conn.commit()
             conn.close()
@@ -297,7 +326,8 @@ def edit_test(request, test_id):
                 title = test_form.cleaned_data['title']
                 description = test_form.cleaned_data['description']
                 amount_of_time = test_form.cleaned_data['amount_of_time']
-                cursor.execute("UPDATE tests SET title = ?, description = ?, amount_of_time = ? WHERE id = ?", (title, description, amount_of_time, test_id))
+                cursor.execute("UPDATE tests SET title = ?, description = ?, amount_of_time = ? WHERE id = ?",
+                               (title, description, amount_of_time, test_id))
 
                 cursor.execute(
                     'select class_tests.id from class_tests left join class c on c.id = class_tests.class_id where test_id = ?',
@@ -329,7 +359,8 @@ def edit_test(request, test_id):
 
                     if question_id:
                         logger.info(f"Updating question {question_id}")
-                        cursor.execute("UPDATE questions SET question_text = ? WHERE id = ?", (question_text, question_id))
+                        cursor.execute("UPDATE questions SET question_text = ? WHERE id = ?",
+                                       (question_text, question_id))
                     else:
                         cursor.execute("INSERT INTO questions (test_id, question_text) VALUES (?, ?)",
                                        (test_id, question_text))

@@ -1,44 +1,70 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Hồ sơ cá nhân{% endblock %}
 
 {% block content %}
-<div class="profile-container">
-    <div class="profile-header">
-        <div>
-            <h3>{{ first_name }} {{ last_name }}</h3>
-            {% if role_id == 1 %}
-            <p>Học sinh</p>
-            {% else %}
-            <p>Giáo viên</p>
-            {% endif %}
+    <div class="profile-container">
+        <div class="profile-header">
+            <div class="profile-avatar">
+                <img src="{% static 'assets/user_placeholder.png' %}" alt="Profile Picture">
+            </div>
+            <div class="profile-info">
+                <h3>{{ first_name }} {{ last_name }}</h3>
+                <p>{{ role_id|yesno:"Học sinh,Giáo viên" }}</p>
+            </div>
         </div>
-        <img src="https://via.placeholder.com/80" alt="Profile Picture">
-        <button class="upload-profile-btn">Tải lên</button>
+
+        <form method="post" action="{% url 'profile' %}" class="profile-form">
+            {% csrf_token %}
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" value="{{ username }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email"
+                            {% if email %}
+                           value="{{ email }}"
+                            {% else %}
+                           placeholder="Chưa cập nhật" value=""
+                            {% endif %} readonly>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="birthdate">Ngày sinh</label>
+                    <input type="date" id="birthdate" name="birthdate" value="{{ date_of_birth }}">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Số điện thoại</label>
+                    <input type="text" id="phone" name="phone"
+                            {% if phone %} value="{{ phone }}" {% else %} placeholder="Chưa cập nhật"
+                           value="" {% endif %}>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="gender">Giới tính</label>
+                    <select id="gender" name="gender">
+                        <option value="1" {% if gender == 1 %}selected{% endif %}>Nam</option>
+                        <option value="0" {% if gender == 0 %}selected{% endif %}>Nữ</option>
+                        {% if gender is None %}
+                            <option value=None selected></option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="school_info">Thông tin trường</label>
+                    <input type="text" id="school_info" name="school_info"
+                            {% if school_name %} value="{{ school_name }}" {% else %} placeholder="Chưa cập nhật"
+                           value="" {% endif %}>
+                </div>
+            </div>
+
+            <button type="submit" class="update-profile-btn">Cập nhật</button>
+        </form>
     </div>
-
-    <div class="profile-body">
-        <label for="username">Username</label>
-        <input type="text" id="username" value="{{ username }}">
-
-        <label for="email">Email</label>
-        <input type="email" id="email" value="{{ email }}">
-
-        <label for="birthdate">Ngày sinh</label>
-        <input type="date" id="birthdate" value="{{ date_of_birth }}">
-
-        <label for="phone">Số điện thoại</label>
-        <input type="text" id="phone" value="{{ phone }}">
-
-        <label for="gender">Giới tính</label>
-        <select id="gender" name="gender">
-            <option value="1" {% if gender == 1 %}selected{% endif %}>Nam</option>
-            <option value="0" {% if gender == 0 %}selected{% endif %}>Nữ</option>
-        </select>
-
-        <label for="school_info">Thông tin trường</label>
-        <input type="text" id="school_info" value="{{ school_name }}">
-
-        <button class="update-profile-btn">Cập nhật</button>
-    </div>
-</div>
 {% endblock %}

@@ -73,7 +73,7 @@
                     probability: parseFloat(prediction[i].probability.toFixed(2))  // probability
                 });
             }
-
+1
             // Check if it's time to send the data (5s)
             const currentTime = new Date(Date.now() + 7 * 60 * 60 * 1000);  // Cộng 7 giờ vào thời gian hiện tại
             if (currentTime - lastSentTime >= sendInterval) {
@@ -227,7 +227,7 @@
                         <img src="{% static "assets/clock.png" %}" alt="Thời gian làm bài" class="icon">
                         <span class="label">Thời gian làm bài</span>
                         <span class="value">{{ his_test.0 }}</span>
-                    </div>
+                     </div>
                     <div class="row">
                         <img src="{% static "assets/tasks.png" %}" alt="Thời gian nộp bài" class="icon">
                         <span class="label">Thời gian nộp bài</span>

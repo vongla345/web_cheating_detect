@@ -8,22 +8,22 @@
     <title>{% block title %}Trang Web{% endblock %}</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
             margin: 0;
             padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1c1c93;
+        }
+
+        .page-container {
             display: flex;
-            height: 100vh;
-            overflow: auto;
-            justify-content: center;
+            min-height: 100vh;
         }
 
         /* Sidebar */
         .sidebar {
-            background-color: #0056b3;
+            background-color: #1c1c93;
             color: white;
             height: 100%;
-            width: 0;
             position: fixed;
             z-index: 1;
             top: 0;
@@ -37,27 +37,30 @@
 
         .sidebar h2 {
             font-size: 18px;
-            margin-bottom: 30px;
-            padding: 10px 0;
+            margin-bottom: 10px;
+            padding-top: 40px;
             color: white;
         }
 
         .sidebar a {
-            color: white;
+            display: flex;
+            align-items: center;
+            padding: 12px 8px;
+            color: white; /* Slate gray for inactive text */
             text-decoration: none;
-            padding: 10px 10px;
-            display: block;
-            transition: background-color 0.3s;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: all 0.2s ease;
         }
 
         .sidebar a:hover {
-            background-color: #003f7f;
-            border-radius: 5px;
+            background-color: #f1f5f9; /* Light gray on hover */
+            color: #1e40af;
         }
 
         .sidebar a.active {
-            background-color: #004a9f;
-            border-radius: 5px;
+            background-color: #e0e7ff; /* Light indigo background */
+            color: #1e40af; /* Darker blue text */
         }
 
         .sidebar .footer {
@@ -65,11 +68,18 @@
             color: #bbb;
         }
 
+        .sidebar a i {
+            margin-right: 20px;
+            width: 20px;
+            height: 20px;
+        }
+
         .sidebar .closebtn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            right: 12px;
+            top: 12px;
             font-size: 24px;
+            padding: 8px;
             color: white;
             cursor: pointer;
             transition: color 0.3s ease;
@@ -100,13 +110,16 @@
 
         /* Main content area */
         .main-content {
-            padding: 20px;
             width: 100%; /* Tùy chỉnh độ rộng nội dung */
             position: relative; /* Cho phép sử dụng các tùy chọn căn chỉnh khác */
             display: flex;
             justify-content: center;
-            height: auto;
             overflow: auto;
+            flex: 1;
+            background: white;
+            margin: 12px;
+            border-radius: 24px;
+            padding: 40px;
         }
 
         @media screen and (max-height: 450px) {
@@ -121,34 +134,59 @@
     </style>
 </head>
 <body>
-<!-- Nút ẩn/hiện sidebar -->
-<button class="toggle-btn" id="open-btn" onclick="toggleNav()">☰</button>
+<div class="page-container">
+    <!-- Nút ẩn/hiện sidebar -->
+    <button class="toggle-btn" id="open-btn" onclick="toggleNav()">☰</button>
 
-<div class="sidebar" id="sidebar">
-    <a href="javascript:void(0)" class="closebtn" onclick="toggleNav()">×</a>
-    <h2>Cài đặt tài khoản</h2>
-    <a href="{% url 'profile' %}" class="{% if request.path == '/accounts/profile/' %}active{% endif %}"
-       onclick="saveSidebarState()">Chung</a>
-    <a href="{% url 'test_list' %}" class="{% if request.path == '/accounts/test/' %}active{% endif %}"
-       onclick="saveSidebarState()">Danh sách bài kiểm tra</a>
-    <a href="#" onclick="saveSidebarState()">Quản lí lớp học</a>
-    <a href="#" onclick="saveSidebarState()">Thống kê học tập</a>
-    <a href="{% url 'logout' %}" onclick="saveSidebarState()">Đăng xuất</a>
+    <div class="sidebar" id="sidebar">
+        <a href="javascript:void(0)" class="closebtn" onclick="toggleNav()">×</a>
+        <h2>Cài đặt tài khoản</h2>
+        <a href="{% url 'profile' %}" class="{% if request.path == '/accounts/profile/' %}active{% endif %}"
+           onclick="saveSidebarState()">
+            <i data-lucide="user"></i>
+            Chung
+        </a>
+        <a href="{% url 'test_list' %}" class="{% if request.path == '/accounts/test/' %}active{% endif %}"
+           onclick="saveSidebarState()">
+            <i data-lucide="clipboard-list"></i>
+            Danh sách bài kiểm tra
+        </a>
+        <!--
+        <a href="#" onclick="saveSidebarState()">
+            <i data-lucide="users"></i>
+            Quản lí lớp học
+        </a>
+        <a href="#" onclick="saveSidebarState()">
+            <i data-lucide="bar-chart-2"></i>
+            Thống kê học tập
+        </a>
+                -->
+        <a href="{% url 'logout' %}" onclick="saveSidebarState()">
+            <i data-lucide="log-out"></i>
+            Đăng xuất
+        </a>
+
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+
+    <!-- Main Content -->
+    <div class="main-content" id="main-content">
+        {% block content %}
+            <!-- Nội dung từng trang sẽ được hiển thị ở đây -->
+        {% endblock %}
+    </div>
+
 </div>
-
-<!-- Main Content -->
-<div class="main-content" id="main-content">
-    {% block content %}
-        <!-- Nội dung từng trang sẽ được hiển thị ở đây -->
-    {% endblock %}
-</div>
-
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const sidebar = document.getElementById("sidebar");
         const main = document.getElementById("main-content");
         const openBtn = document.getElementById("open-btn");
-
+        const header = document.querySelector(".header");
         // Khôi phục trạng thái sidebar từ sessionStorage
         const sidebarState = sessionStorage.getItem("sidebarState");
         if (sidebarState === "open") {
@@ -156,12 +194,12 @@
             sidebar.style.paddingLeft = "10px";
             sidebar.style.transition = "0s";
             main.style.transition = "0s";
-            main.style.marginLeft = "250px";
+            main.style.marginLeft = "262px";
             openBtn.style.display = "none";
         } else {
             sidebar.style.width = "0";
             sidebar.style.paddingLeft = "0";
-            main.style.marginLeft = "0";
+            main.style.marginLeft = "12px";
             openBtn.style.display = "block";
         }
     });
@@ -175,7 +213,7 @@
             // Đóng sidebar
             sidebar.style.width = "0";
             sidebar.style.paddingLeft = "0";
-            main.style.marginLeft = "0";
+            main.style.marginLeft = "12px";
             openBtn.style.display = "block";
             sessionStorage.setItem("sidebarState", "closed"); // Lưu trạng thái
         } else {
@@ -184,7 +222,7 @@
             sidebar.style.paddingLeft = "10px";
             sidebar.style.transition = "0.3s ease"; // Hiệu ứng chuyển động
             main.style.transition = "margin-left 0.3s";
-            main.style.marginLeft = "250px";
+            main.style.marginLeft = "262px";
             openBtn.style.display = "none";
             sessionStorage.setItem("sidebarState", "open"); // Lưu trạng thái
         }
