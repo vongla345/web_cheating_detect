@@ -232,7 +232,7 @@ div.form-group input {
     object-fit: cover;
 }
 
-.profile-header .upload-btn {
+.profile-header .upload-profile-btn {
     background-color: #004a9f;
     color: white;
     padding: 5px 15px;
@@ -242,7 +242,7 @@ div.form-group input {
     transition: background-color 0.3s;
 }
 
-.profile-header .upload-btn:hover {
+.profile-header .upload-profile-btn:hover {
     background-color: #003f7f;
 }
 
@@ -266,21 +266,6 @@ div.form-group input {
     font-size: 16px;
 }
 
-.update-btn {
-    background-color: #0056b3;
-    color: white;
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    width: 100%;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.update-btn:hover {
-    background-color: #003f7f;
-}
 
 /* for test_list */
 /* Container chính */
@@ -871,15 +856,20 @@ div.form-group input {
 }
 
 .create-test-container {
-    max-width: 800px;
-    margin: auto;
+    width: 90%;
     padding: 20px;
     border: 1px solid #ddd;
     border-radius: 8px;
     background: #f9f9f9;
-    overflow: hidden; /* Đảm bảo phần nội dung bên trong không bị tràn */
+    display: flex; /* Sử dụng Flexbox */
+    flex-direction: column; /* Các phần tử bên trong xếp theo cột */
+    height: fit-content;
 }
 
+
+.create-test-container form {
+    width: 100%;
+}
 
 .create-test-container h1 {
     font-size: 24px;
@@ -904,7 +894,7 @@ div.form-group input {
     border-radius: 5px;
 }
 
-.upload-btn, .create-btn {
+.update-btn, .create-btn, .delete-btn {
     background-color: #007bff;
     color: white;
     border: none;
@@ -915,7 +905,7 @@ div.form-group input {
     margin: 5px;
 }
 
-.upload-btn:hover, .create-btn:hover {
+.upload-btn:hover, .create-btn:hover, .delete-btn:hover {
     background-color: #0056b3;
 }
 
@@ -967,6 +957,7 @@ div.form-group input {
     background-color: #1c1c93; /* Màu khi hover */
     color: white;
 }
+
 .question-actions {
     margin-top: 10px;
 }
@@ -989,4 +980,41 @@ div.form-group input {
 
 .question-actions button:hover {
     opacity: 0.8;
+}
+
+/* edit test */
+.edit-test-container {
+    width: 90%;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f9f9f9;
+    display: flex; /* Sử dụng Flexbox */
+    flex-direction: column; /* Các phần tử bên trong xếp theo cột */
+    height: fit-content;
+}
+
+.edit-test-container form {
+    width: 100%;
+}
+.edit-test-container h1 {
+    font-size: 24px;
+    color: #333;
+}
+
+.edit-test-container form {
+    margin-top: 20px;
+}
+
+.edit-test-container label {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.edit-test-container input[type="text"]{
+    padding: 10px;
+    width: 80%;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
 }

@@ -11,7 +11,8 @@
             <input type="file" id="excel_file" name="excel_file" accept=".xlsx" onchange="handleFileUpload(event)">
         </form>
 
-        <form method="post" action="{% url 'create_test' %}" class="create-test-form">
+        <form method="post" action="{% url 'create_test' %}" class="create-test-form"
+              onsubmit="return validateSubmit();">
             {% csrf_token %}
             <h3>Test Information</h3>
             <label for="title">Title:</label>
@@ -35,22 +36,15 @@
                 {% for form in question_formset %}
                     <div class="question" id="question-{{ forloop.counter }}">
                         {{ form.as_p }}
-                        <button type="button" class="delete-question-btn"
-                                onclick="deleteQuestion({{ forloop.counter }})">
-                            Xóa câu hỏi
-                        </button>
                     </div>
                 {% endfor %}
             </div>
             <div id="question-grid">
                 {% for question in questions %}
-                    <div class="question-btn-container" id="question-btn-container-{{ forloop.counter }}">
                         <button type="button" class="new-question-btn" id="question-btn-{{ forloop.counter }}"
                                 onclick="showQuestion({{ forloop.counter }})">
                             {{ forloop.counter }}
                         </button>
-                        <span class="delete-icon" onclick="deleteQuestion({{ forloop.counter }})">&times;</span>
-                    </div>
                 {% endfor %}
                 <button type="button" class="question-btn add-btn" onclick="addQuestion()">+</button>
             </div>
@@ -85,15 +79,21 @@
                     <div class="choice">
                         <label for="id_choices-${questionIndex}-${i}-choice_text">Choice ${i + 1}:</label>
                         <input type="text" name="choices-${questionIndex}-${i}-choice_text" id="id_choices-${questionIndex}-${i}-choice_text" required>
-                        <label for="id_choices-${questionIndex}-${i}-is_correct">Correct:</label>
-                        <input type="checkbox" name="choices-${questionIndex}-${i}-is_correct" id="id_choices-${questionIndex}-${i}-is_correct"><br>
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="choices-${questionIndex}-${i}-is_correct"
+                                id="id_choices-${questionIndex}-${i}-is_correct"
+                                onclick="handleCheckboxClick(${questionIndex}, ${i})">
+                            Correct
+                        </label>
                     </div>
                 `).join('')}
             </div>
 
             <div class="question-actions">
-                <button type="button" class="btn-delete" onclick="deleteQuestion(${questionIndex})">Delete Question</button>
-                <button type="button" class="btn-clear" onclick="clearContent(${questionIndex})">Clear Content</button>
+                <button type="button" class="btn-delete" onclick="deleteQuestion(${questionIndex})">Xoá câu hỏi</button>
+                <button type="button" class="btn-clear" onclick="clearContent(${questionIndex})">Xoá nội dung</button>
             </div>
         </div>
     `;
@@ -115,6 +115,20 @@
             document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
         }
 
+        function handleCheckboxClick(questionIndex, choiceIndex) {
+            const checkboxes = document.querySelectorAll(`input[name^="choices-${questionIndex}-"][type="checkbox"]`);
+
+            // Uncheck all checkboxes and remove "checked" class
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.classList.remove('checked');
+            });
+
+            // Check only the current checkbox and add the "checked" class
+            const selectedCheckbox = document.getElementById(`id_choices-${questionIndex}-${choiceIndex}-is_correct`);
+            selectedCheckbox.checked = true;
+            selectedCheckbox.classList.add('checked');
+        }
 
         function handleFileUpload(event) {
             const fileInput = event.target;
@@ -261,5 +275,24 @@
             document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
         }
 
+        function validateSubmit() {
+            // Lấy tất cả các câu hỏi
+            const questions = document.querySelectorAll('.question');
+
+            // Duyệt qua từng câu hỏi
+            for (let question of questions) {
+                const checkboxes = question.querySelectorAll('input[type="checkbox"][name$="-is_correct"]'); // Các checkbox của câu hỏi
+                const checkedCheckboxes = Array.from(checkboxes).filter(checkbox => checkbox.checked); // Checkbox được tích
+
+                // Nếu không có hoặc có hơn 1 đáp án được chọn
+                if (checkedCheckboxes.length !== 1) {
+                    alert("Đảm bảo mỗi câu hỏi có đúng 1 đáp án đúng.");
+                    return false; // Dừng submit
+                }
+            }
+
+            // Nếu tất cả câu hỏi hợp lệ, tiếp tục submit
+            return true;
+        }
     </script>
 {% endblock %}
