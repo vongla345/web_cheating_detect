@@ -910,7 +910,7 @@ a:hover {
     color: #1c801c;
 }
 
-.actions .answer {
+.answer {
     background-color: white;
     color: #1c1c93;
     border-radius: 8px;
@@ -922,7 +922,7 @@ a:hover {
     color: white;
 }
 
-.actions .answer:hover {
+.answer:hover {
     background-color: #1c1c93;
     color: white;
 }

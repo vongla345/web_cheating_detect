@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic.schema import timedelta
+from datetime import timedelta
 import random
 from .helpers import process_excel
 from django.contrib.auth.decorators import login_required
@@ -86,7 +86,6 @@ def register_view(request):
     return render(request, 'index/register.html', {'form': form})
 
 
-@login_required
 def profile_view(request):
     user_id = request.session.get('user_id')
     logger.info(f"User ID: {user_id}")
@@ -353,34 +352,27 @@ def edit_test(request, test_id):
 
                 # Cập nhật câu hỏi và lựa chọn
                 question_count = int(request.POST.get('question_count'))
+                cursor.execute("DELETE FROM choices WHERE question_id IN (SELECT id FROM questions WHERE test_id = ?)",
+                               (test_id,))
+                cursor.execute("DELETE FROM questions WHERE test_id = ?", (test_id,))
                 for i in range(question_count):
                     question_text = request.POST.get(f'questions-{i}-question_text')
                     question_id = request.POST.get(f'questions-{i}-id')
 
-                    if question_id:
-                        logger.info(f"Updating question {question_id}")
-                        cursor.execute("UPDATE questions SET question_text = ? WHERE id = ?",
-                                       (question_text, question_id))
-                    else:
-                        cursor.execute("INSERT INTO questions (test_id, question_text) VALUES (?, ?)",
-                                       (test_id, question_text))
-                        question_id = cursor.lastrowid  # Lấy ID của câu hỏi mới
+                    cursor.execute("INSERT INTO questions (test_id, question_text) VALUES (?, ?)",
+                                   (test_id, question_text))
+                    question_id = cursor.lastrowid  # Lấy ID của câu hỏi mới
 
                     # Cập nhật hoặc thêm mới lựa chọn cho câu hỏi
                     for j in range(4):  # Giới hạn 4 lựa chọn mỗi câu hỏi
                         choice_text = request.POST.get(f'choices-{i}-{j}-choice_text')
                         is_correct = request.POST.get(f'choices-{i}-{j}-is_correct', False)
                         choice_id = request.POST.get(f'choices-{i}-{j}-id', None)
-                        if choice_id is not None:
-                            cursor.execute(
-                                "UPDATE choices SET choice_text = ?, is_correct = ? WHERE id = ?",
-                                (choice_text, is_correct, choice_id)
-                            )
-                        else:
-                            cursor.execute(
-                                "INSERT INTO choices (choice_text, question_id, is_correct) VALUES (?, ?, ?)",
-                                (choice_text, question_id, is_correct)
-                            )
+
+                        cursor.execute(
+                            "INSERT INTO choices (choice_text, question_id, is_correct) VALUES (?, ?, ?)",
+                            (choice_text, question_id, is_correct)
+                        )
 
                 conn.commit()
                 conn.close()
@@ -409,7 +401,7 @@ def test_detail(request, test_id):
         return HttpResponse("<h1>Test not found</h1><p>The test you are looking for does not exist.</p>",
                             content_type="text/html")
 
-    test_duration = test[3]  # Giả sử thời gian làm bài (phút) ở cột thứ 3
+    test_duration = test[3]
     cursor.execute('SELECT * FROM questions WHERE test_id=?', (test_id,))
     questions = cursor.fetchall()
     questions = [list(question) for question in questions]
@@ -449,6 +441,9 @@ def test_detail(request, test_id):
         i[4] = i[4].strftime("%Y/%m/%d %H:%M")
     history_student_test = [[i[3], i[4], i[5]] for i in history_student_test]
 
+    cursor.execute('select first_name, last_name from main.users where id = ?', (request.session.get('user_id'),))
+    name = cursor.fetchone()
+    name = name[0] + ' ' + name[1]
     if request.method == 'POST':
         action = request.POST.get('action')
 
@@ -514,7 +509,7 @@ def test_detail(request, test_id):
 
     conn.close()
     return render(request, 'test/test_detail.html',
-                  {'test': test, 'questions_data': questions_data, 'history_student_test': history_student_test})
+                  {'name': name, 'test': test, 'questions_data': questions_data, 'history_student_test': history_student_test})
 
 
 @csrf_exempt
@@ -531,35 +526,36 @@ def save_prediction(request):
                 logger.error("student_test_id not found in session")
                 return JsonResponse({'status': 'failed', 'message': 'student_test_id is missing in session'})
 
-            # Find the item with the highest probability
-            max_item = max(data, key=lambda x: float(x['probability']))  # Ensure probability is a float
-            status = max_item['className']
-            probability = float(max_item['probability'])  # Ensure probability is a float
+            # Extract data
+            dominant_class = data.get('dominantClass')
+            logger.info(f"dominant_class: {dominant_class}")
+            cheating_duration = data.get('cheatingDuration', 0)
+            logger.info(f"cheating_duration: {cheating_duration}")
+            switch_count = data.get('switchCount', 0)
+            logger.info(f"switch_count: {switch_count}")
 
-            # Update status if not "Normal"
-            if status != 'Normal':
-                status = 'Cheating'
+            # Determine the status
+            if dominant_class == "Cheating":
+                status = "Cheating"
+            else:
+                status = "Normal"
 
-            # Log the status and probability
-            logger.info(f"Status: {status}, Probability: {probability}")
+            # Log the status
+            logger.info(f"Status: {status}, Cheating Duration: {cheating_duration}s, Switch Count: {switch_count}")
 
-            # Insert data into the monitoring_data table
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO monitoring_data (student_test_id, timestamp, status, probability)
-                    VALUES (?, ?, ?, ?)
-                """, [student_test_id, datetime.now(), status, probability])
-
+            conn = sqlite3.connect('db.sqlite3')
+            cursor = conn.cursor()
+            cursor.execute("""
+                    INSERT INTO monitoring_data (student_test_id, timestamp, status, cheating_duration, switch_count)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (student_test_id, datetime.now(), status, cheating_duration, switch_count))
+            conn.commit()
+            conn.close()
+            # Send Telegram notification if cheating is detected
+            # if status == "Cheating":
+            # send_telegram_notification(student_test_id, cheating_duration)
             return JsonResponse({'status': 'success'})
 
-        except json.JSONDecodeError:
-            logger.error("Failed to decode JSON")
-            return JsonResponse({'status': 'failed', 'message': 'Invalid JSON format'})
-        except KeyError as e:
-            logger.error(f"Missing key: {str(e)}")
-            return JsonResponse({'status': 'failed', 'message': f'Missing key: {str(e)}'})
         except Exception as e:
-            logger.error(f"Error occurred: {str(e)}")
+            logger.error(f"Error saving prediction: {e}")
             return JsonResponse({'status': 'failed', 'message': str(e)})
-
-    return JsonResponse({'status': 'failed', 'message': 'Only POST requests allowed'})

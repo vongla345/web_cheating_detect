@@ -44,7 +44,6 @@
             }
         }
 
-
         async function loop() {
             webcam.update();
             if (isPredicting) {
@@ -53,34 +52,152 @@
             window.requestAnimationFrame(loop);
         }
 
-
-        let dataBuffer = [];  // Mảng tạm lưu trữ dữ liệu
-        let lastSentTime = 0;  // Thời gian gửi dữ liệu cuối cùng
-        const sendInterval = 5000;  // 5 giây
+        let dataBuffer = [];
+        const updateInterval = 5000;  // 5 seconds for sending data
+        const warningDuration = 5000;  // 5 seconds for warning display
+        const sendInterval = 5000;  // Send every 5 seconds
+        let lastSentTime = 0;
+        let warningTimeout = null;
+        let lastPushTime = 0;  // Biến lưu thời gian push cuối cùng
+        let alertEndTime = 0; // Thời gian kết thúc của cảnh báo hiện tại (tính bằng mili giây)
+        let sentMessage = false; // Biến kiểm tra đã gửi cảnh báo hay chưa
+        let cheatingDuration = 0; // Tổng thời gian liên tục trong trạng thái "Cheating" (tính bằng giây)
+        const cheatingThreshold = 10;
 
         async function predict() {
             // Run the prediction
             const prediction = await model.predict(webcam.canvas);
 
-            // Loop through predictions and store them in buffer
-            for (let i = 0; i < maxPredictions; i++) {
-                const classPrediction = prediction[i].className + ": " + prediction[i].probability.toFixed(2);
-                labelContainer.childNodes[i].innerHTML = classPrediction;
+            const normalPrediction = prediction.find(p => p.className === 'Normal') || {probability: 0};
+            const rightPrediction = prediction.find(p => p.className === 'Right') || {probability: 0};
+            const leftPrediction = prediction.find(p => p.className === 'Left') || {probability: 0};
+            const downPrediction = prediction.find(p => p.className === 'Down') || {probability: 0};
 
-                // Store prediction data
-                dataBuffer.push({
-                    className: prediction[i].className,  // className
-                    probability: parseFloat(prediction[i].probability.toFixed(2))  // probability
-                });
+            // Xác định className và probability
+            let className = 'Normal';
+            let probability = normalPrediction.probability;
+
+            // Nếu xác suất của 'Right', 'Left', hoặc 'Down' cao hơn 'Normal', gộp chúng thành 'Cheating'
+            if (Math.max(rightPrediction.probability, leftPrediction.probability, downPrediction.probability) > normalPrediction.probability) {
+                className = 'Cheating';
+                // Lấy xác suất cao nhất trong các lớp 'Right', 'Left', 'Down'
+                probability = Math.max(rightPrediction.probability, leftPrediction.probability, downPrediction.probability);
             }
-1
-            // Check if it's time to send the data (5s)
-            const currentTime = new Date(Date.now() + 7 * 60 * 60 * 1000);  // Cộng 7 giờ vào thời gian hiện tại
+
+            // Làm tròn giá trị xác suất
+            probability = parseFloat(probability.toFixed(2));
+
+            const currentTime = new Date().getTime();  // Lấy thời gian hiện tại tính bằng mili giây
+
+            // Kiểm tra xem đã đủ 1 giây để push dữ liệu vào dataBuffer
+            if (currentTime - lastPushTime >= 1000) {  // 1000 mili giây = 1 giây
+                // Thêm dữ liệu vào dataBuffer
+                dataBuffer.push({
+                    className: className,
+                    probability: probability
+                });
+
+                // Cập nhật thời gian push dữ liệu
+                lastPushTime = currentTime;
+            }
+            if (className === 'Cheating') {
+                cheatingDuration += 1; // Tăng 1 giây nếu vẫn là "Cheating"
+            } else {
+                cheatingDuration = 0; // Reset nếu quay về "Normal"
+            }
+            // Nếu đủ ngưỡng thời gian 10 giây thì gửi cảnh báo qua Telegram
+            if (cheatingDuration >= cheatingThreshold && !sentMessage) {
+                await sendTelegramAlert("Thí sinh {{ name }} đã gian lận liên tục trong 10 giây!");
+                cheatingDuration = 0; // Reset sau khi gửi cảnh báo
+                sentMessage = true; // Đánh dấu đã gửi cảnh báo
+                console.log("Sent cheating alert to Telegram");
+            }
+
+
+            // Tìm lớp có xác suất cao nhất và cập nhật hiển thị trên giao diện
+            // Cập nhật hiển thị cảnh báo
+            if (className === 'Cheating') {
+                // Nếu là "Cheating", cập nhật thời gian kết thúc cảnh báo thêm 3 giây
+                alertEndTime = Math.max(alertEndTime, currentTime + 3000);
+            }
+
+            // Hiển thị hoặc ẩn cảnh báo dựa trên thời gian hiện tại
+            if (currentTime < alertEndTime) {
+                labelContainer.innerHTML = "<div style='color: red; font-weight: bold;'>Gian Lận</div>"; // Hiển thị cảnh báo gian lận
+            } else {
+                labelContainer.innerHTML = ""; // Xóa cảnh báo nếu hết thời gian
+            }
+
+            // Kiểm tra thời gian để gửi dữ liệu lên server (5 giây)
             if (currentTime - lastSentTime >= sendInterval) {
                 console.log("Sending data to server:", dataBuffer);
-                await sendDataToServer(dataBuffer);  // Gửi dữ liệu lên server
-                dataBuffer = [];  // Reset buffer after sending data
+                await sendDataToServer(summarizeData(dataBuffer));  // Gửi dữ liệu lên server
+                dataBuffer = [];  // Reset buffer sau khi gửi
                 lastSentTime = currentTime;  // Cập nhật thời gian gửi dữ liệu
+            }
+        }
+
+        function summarizeData(buffer) {
+            const total = buffer.length;
+            const classCounts = {Normal: 0, Cheating: 0};
+            let cheatingDuration = 0;
+
+            buffer.forEach(item => {
+                if (item.className === "Normal") {
+                    classCounts.Normal++;
+                } else {
+                    classCounts.Cheating++; // Group Right, Left, Down into "Cheating"
+                    cheatingDuration++; // Assume each frame represents 1 second
+                }
+            });
+
+            return {
+                dominantClass: classCounts.Cheating > classCounts.Normal ? "Cheating" : "Normal",
+                cheatingDuration,
+                switchCount: countSwitches(buffer)
+            };
+        }
+
+        function countSwitches(buffer) {
+            let lastClass = buffer[0].className;
+            let switches = 0;
+
+            buffer.forEach(item => {
+                if (item.className !== lastClass) {
+                    switches++;
+                    lastClass = item.className;
+                }
+            });
+
+            return switches;
+        }
+
+        async function sendTelegramAlert(message) {
+            const botToken = "7689072008:AAE-OqwZi6HERQxA3diHmBr_TZo2RK6y9Ps"; // Thay bằng token bot của bạn
+            const chatId = "-4581491703";    // Thay bằng chat ID của nhóm hoặc người dùng
+
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                    }),
+                });
+
+                const result = await response.json();
+                if (!result.ok) {
+                    console.error("Failed to send Telegram alert:", result.description);
+                } else {
+                    console.log("Telegram alert sent successfully:", message);
+                }
+            } catch (error) {
+                console.error("Error sending Telegram alert:", error);
             }
         }
 
@@ -90,11 +207,11 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(data),  // Gửi dữ liệu dưới dạng JSON
+                body: JSON.stringify(data),
             });
 
             const result = await response.json();
-            console.log(result);  // Log phản hồi từ server
+            console.log(result); // Log server response
         }
 
         let remainingTime;  // Tổng thời gian còn lại (giây)
@@ -194,7 +311,7 @@
     </script>
 
     <div id="test-page">
-        <div id="timer-container">
+        <div id="timer-container" style="display: none">
             <span id="timer-label">Thời gian còn lại:</span>
             <span id="timer"></span>
         </div>
@@ -208,10 +325,6 @@
                 <div><i class="fa fa-clock-o"></i> Thời gian làm bài: {{ test.3 }} phút</div>
                 <div><i class="fa fa-list"></i> Số lượng câu hỏi: {{ questions_data|length }} </div>
                 <div><i class="fa fa-file-text"></i> Loại đề: Trắc nghiệm</div>
-            </div>
-            <div id="timer-container" style="display: none;">
-                <span id="timer-label">Thời gian còn lại:</span>
-                <span id="timer">40:00</span>
             </div>
             <div id="start-buttons">
                 <button onclick="initCamera()">Bật Camera</button>
@@ -227,7 +340,7 @@
                         <img src="{% static "assets/clock.png" %}" alt="Thời gian làm bài" class="icon">
                         <span class="label">Thời gian làm bài</span>
                         <span class="value">{{ his_test.0 }}</span>
-                     </div>
+                    </div>
                     <div class="row">
                         <img src="{% static "assets/tasks.png" %}" alt="Thời gian nộp bài" class="icon">
                         <span class="label">Thời gian nộp bài</span>
