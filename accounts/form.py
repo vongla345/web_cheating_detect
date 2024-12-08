@@ -1,7 +1,6 @@
 from django import forms
 from django.forms import formset_factory
-import sqlite3
-
+from .models import User
 
 class LoginForm(forms.Form):
     username = forms.CharField(
@@ -34,8 +33,6 @@ class RegisterForm(forms.Form):
         return cleaned_data
 
     def save(self):
-        conn = sqlite3.connect('db.sqlite3')
-        cursor = conn.cursor()
 
         username = self.cleaned_data['username']
         first_name = self.cleaned_data['first_name']
@@ -49,11 +46,9 @@ class RegisterForm(forms.Form):
         else:
             role = 1
 
-        # Thêm user vào database
-        cursor.execute("INSERT INTO users (username, first_name, last_name, email, password, role_id) VALUES (?, ?, ?, ?, ?,?)",
-                       (username, first_name, last_name, email, password, role))
-        conn.commit()
-        conn.close()
+        user = User(username=username,password=password, first_name=first_name, last_name=last_name, email=email, role_id=role)
+        user.save()
+
 
 class ChoiceForm(forms.Form):
     choice_text = forms.CharField(max_length=255, required=True, label="Choice")

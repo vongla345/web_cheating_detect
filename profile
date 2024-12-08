@@ -1,0 +1,1 @@
+web gunicorn web_cheanting_detect.wsgi:application --log-file -

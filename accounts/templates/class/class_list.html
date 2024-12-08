@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Quản lý lớp học{% endblock %}
+{% block content %}
+
+    <div class="management-container">
+        <div class="search-section">
+            <div class="search-label">Search filter:</div>
+            <input type="text" class="search-input" placeholder="Tìm kiếm theo tên lớp...">
+        </div>
+
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>ID <span class="sort-icons">▲▼</span></th>
+                <th>Tên lớp <span class="sort-icons">▲▼</span></th>
+                <th>Năm học <span class="sort-icons">▲▼</span></th>
+                <th>Hành động</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for class in classes %}
+                <tr>
+                    <td>{{ class.0 }}</td>
+                    <td>{{ class.1 }}</td>
+                    <td>{{ class.2 }}</td>
+                    <td>
+                        <a href="{% url 'class_detail' class.0 %}" class="view-btn">
+                            <i class='bx bx-list-ul'></i>
+                        </a>
+                        <button class="delete-btn" onclick="confirmDelete({{ class.0 }})">
+                            <i class='bx bxs-x-circle'></i>
+                        </button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            <button class="page-btn">Trước</button>
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn">Tiếp</button>
+        </div>
+    </div>
+
+    <script>
+        function confirmDelete(classId) {
+            if (confirm('Bạn có chắc chắn muốn xóa lớp học này?')) {
+                console.log('Deleting class:', classId);
+            }
+        }
+
+        document.querySelectorAll('.sort-icons').forEach(icon => {
+            icon.addEventListener('click', function () {
+                const column = this.parentElement.textContent.trim();
+                console.log('Sorting by:', column);
+            });
+        });
+
+        document.querySelector('.search-input').addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            console.log('Searching for:', searchTerm);
+        });
+    </script>
+
+{% endblock %}

@@ -27,3 +27,4 @@ def process_excel(file):
                 'is_correct': is_correct
             })
     return questions
+
