@@ -38,6 +38,11 @@
 
                 // Camera khởi tạo thành công
                 isCameraRunning = true;
+
+                alert("Đưa mặt vào camera để bắt đầu xác thực khuôn mặt.");
+
+                // Bắt đầu vòng lặp xác thực
+                await startFaceVerification();
             } catch (error) {
                 alert("Không thể khởi tạo camera hoặc tải mô hình. Vui lòng kiểm tra lại.");
                 console.error("Camera initialization error:", error);
@@ -51,6 +56,86 @@
             }
             window.requestAnimationFrame(loop);
         }
+
+        async function fetchImageFromURL(url) {
+            const response = await fetch(url);
+            return await response.blob();
+        }
+
+        async function sendFaceToServer(webcamBlob) {
+            try {
+                // Tải ảnh tham chiếu từ profile_picture.url
+                const referenceBlob = await fetchImageFromURL("{{ profile_picture.url }}");
+
+                // Tạo form data
+                const formData = new FormData();
+                formData.append('reference_image', referenceBlob, "reference.jpg");
+                formData.append('webcam_image', webcamBlob, "webcam.jpg");
+
+                const response = await fetch('http://localhost:8080/authenticate/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                return await response.json();
+            } catch (error) {
+                console.error("Lỗi khi gửi dữ liệu đến server:", error);
+                return null;
+            }
+        }
+
+        // Hàm lấy ảnh từ webcam
+        async function captureWebcamImage() {
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+
+            // Set canvas size to match webcam size
+            canvas.width = webcam.canvas.width;
+            canvas.height = webcam.canvas.height;
+
+            // Vẽ hình ảnh từ webcam lên canvas
+            context.drawImage(webcam.canvas, 0, 0);
+
+            // Hiển thị ảnh trên giao diện
+            const previewImage = document.getElementById("previewImage");
+            previewImage.style.display = "block"; // Hiển thị thẻ img
+            previewImage.src = canvas.toDataURL("image/jpeg"); // Gán ảnh từ canvas vào thẻ img
+
+            // Lấy ảnh dưới dạng Blob để gửi API
+            return await new Promise((resolve) =>
+                canvas.toBlob(resolve, "image/jpeg")
+            );
+        }
+
+
+        // Hàm bắt đầu xác thực khuôn mặt
+        async function startFaceVerification() {
+            while (true) {
+                // Chụp ảnh từ webcam
+                const webcamImageBlob = await captureWebcamImage();
+                console.log(webcamImageBlob)
+                // Gửi ảnh qua server và nhận kết quả
+                const result = await sendFaceToServer(webcamImageBlob);
+
+                // Hiển thị kết quả lên giao diện
+                /*
+                if (result) {
+                    document.getElementById("result-container").innerText =
+                        `Similarity: ${result.similarity.toFixed(2)}% - Status: ${result.status}`;
+                }
+                */
+                console.log(result)
+                // Nếu pass xác thực, dừng kiểm tra
+                if (result && result.status === "approved") {
+                    alert("Khuôn mặt hợp lệ! Xác thực thành công.");
+                    break;
+                }
+
+                // Nếu không pass, đợi 1 giây trước khi tiếp tục
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        }
+
 
         let dataBuffer = [];
         const updateInterval = 5000;  // 5 seconds for sending data
@@ -202,7 +287,7 @@
         }
 
         async function sendDataToServer(data) {
-            const response = await fetch('/accounts/save_prediction/', {
+            const response = await fetch('/save_prediction/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -309,6 +394,7 @@
         }
 
     </script>
+    <img id="previewImage" alt="Webcam Preview" style="display: none; max-width: 100%; border: 1px solid #ccc;">
 
     <div id="test-page">
         <div id="timer-container" style="display: none">

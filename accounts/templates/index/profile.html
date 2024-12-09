@@ -4,6 +4,56 @@
 {% block title %}Student Details{% endblock %}
 
 {% block content %}
+    <script>
+        async function validateProfilePicture() {
+            const loadingIcon = document.getElementById("loading-icon");
+            const fileInput = document.getElementById("profile_picture");
+            const file = fileInput.files[0];
+
+            if (!file || !file.type.startsWith("image/")) {
+                alert("Please upload a valid image file.");
+                fileInput.value = null; // Reset input nếu không phải là ảnh
+                return;
+            }
+
+            // Hiển thị biểu tượng loading
+            loadingIcon.style.display = "block";
+
+            try {
+                const formData = new FormData();
+                formData.append("image", file);
+
+                const response = await fetch("http://localhost:8080/check-face", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const result = await response.json();
+                console.log(result)
+                if (response.ok && result.status === "success") {
+                    alert(result.message); // Thông báo khuôn mặt hợp lệ
+                } else if (response.ok && result.status === "error") {
+                    alert(result.message || "No face detected. Please upload another image.");
+                    // Xoá ảnh trong input nếu không hợp lệ
+                    fileInput.value = null;
+                } else {
+                    alert(result.message || "No face detected. Please upload a valid image.");
+                    // Xoá ảnh trong input nếu không hợp lệ
+                    fileInput.value = null;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while validating the image.");
+                // Xoá ảnh trong trường hợp xảy ra lỗi
+                fileInput.value = null;
+            } finally {
+                // Ẩn biểu tượng loading
+                loadingIcon.style.display = "none";
+            }
+        }
+
+
+    </script>
     <div class="profile-container">
         <div class="student-details-header">
             <h2>Thông tin chung</h2>
@@ -18,7 +68,11 @@
                         <img src="{% static 'assets/user_placeholder.png' %}" alt="Default Profile Picture">
                     {% endif %}
                     <div class="form-group">
-                        <input type="file" id="profile_picture" name="profile_picture" accept="image/*">
+                        <input type="file" id="profile_picture" name="profile_picture" accept="image/*"
+                               onchange="validateProfilePicture()">
+                    </div>
+                    <div id="loading-icon" class="loading-icon" style="display: none;">
+                        <img src="{% static 'assets/loading.gif' %}" alt="Loading...">
                     </div>
                 </div>
 

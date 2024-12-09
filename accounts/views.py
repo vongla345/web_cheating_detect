@@ -487,9 +487,8 @@ def test_detail(request, test_id):
         return HttpResponse("<h1>Test not found</h1><p>The test you are looking for does not exist.</p>",
                             content_type="text/html")
 
-    cursor.execute("select profile_picture from users where id = ?", (request.session.get('user_id'),))
-    profile_picture = cursor.fetchone()
-    profile_picture = profile_picture[0]
+    user = User.objects.get(id=request.session.get('user_id'))
+    profile_picture = user.profile_picture
     logger.info(profile_picture)
     test_duration = test[3]
     cursor.execute('SELECT * FROM questions WHERE test_id=?', (test_id,))
