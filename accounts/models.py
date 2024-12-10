@@ -15,7 +15,6 @@ class User(models.Model):
     school_name = models.CharField(max_length=255, blank=True, null=True)
     role = models.ForeignKey('Role', on_delete=models.CASCADE, related_name='users', default=1)
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
-
     class Meta:
         db_table = 'users'  # Ánh xạ đến bảng `users`
 
@@ -33,6 +32,7 @@ class Test(models.Model):
     description = models.CharField(max_length=255, blank=True, null=True)
     amount_of_time = models.IntegerField()
     created_by = models.ForeignKey('User', on_delete=models.CASCADE, related_name='tests',db_column='created_by',null=True)
+    attempt_limit = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'tests'

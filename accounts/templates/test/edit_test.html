@@ -14,7 +14,9 @@
             <label for="description">Mô tả:</label><br>
             <input type="text" id="description" name="description" value="{{ test_form.initial.description }}"><br>
             <label for="amount_of_time">Thời gian làm bài (phút):</label><br>
-            <input type="text" id="amount_of_time" name="amount_of_time" value="{{ test_form.initial.amount_of_time }}"><br><br>
+            <input type="text" id="amount_of_time" name="amount_of_time" value="{{ test_form.initial.amount_of_time }}"><br>
+            <label for="attempt_limit">Số lần làm bài:</label><br>
+            <input type="text" id="attempt_limit" name="attempt_limit" value="{{ test_form.initial.attempt_limit }}"><br><br>
             <div>
                 <h3>Chọn lớp làm bài kiểm tra</h3>
                 {% for class in classes %}

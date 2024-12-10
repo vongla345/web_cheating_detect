@@ -534,6 +534,7 @@ div.form-group input {
     border-radius: 10px;
     max-width: 1200px;
     width: 70%;
+    margin: 20px auto;
 }
 
 /* Header cố định trên cùng */
@@ -652,6 +653,7 @@ div.form-group input {
 /* test detail */
 #test-page {
     display: flex;
+    margin: 10px auto;
     width: 80%;
     flex-direction: column; /* Sắp xếp theo cột */
     align-items: center; /* Căn giữa theo chiều ngang */
@@ -746,6 +748,30 @@ div.form-group input {
 
 #test-page #start-buttons button:hover {
     background-color: #e55a00;
+}
+
+#test-page #start-buttons button.hidden-button {
+    background-color: #cccccc; /* Màu xám */
+    color: #666666; /* Màu chữ xám */
+    cursor: not-allowed; /* Hiển thị chuột không thể bấm */
+    pointer-events: none; /* Ngăn chặn sự kiện bấm */
+    transition: background-color 0.3s ease;
+}
+
+/* Khi nút được kích hoạt */
+#test-page #start-buttons button.active-button {
+    background-color: #ff6600;
+    color: #fff;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+#test-page #start-buttons button.active-button:hover {
+    background-color: #e55a00;
+}
+
+#start-test-btn && #hidden-button{
+    background-color: #6c757d;
 }
 
 #history-button {
@@ -1123,6 +1149,7 @@ div.form-group input {
     display: flex; /* Sử dụng Flexbox */
     flex-direction: column; /* Các phần tử bên trong xếp theo cột */
     height: fit-content;
+    margin: 20px auto;
 }
 
 
@@ -1251,6 +1278,7 @@ div.form-group input {
     display: flex; /* Sử dụng Flexbox */
     flex-direction: column; /* Các phần tử bên trong xếp theo cột */
     height: fit-content;
+    margin: 20px auto;
 }
 
 .edit-test-container form {

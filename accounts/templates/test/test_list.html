@@ -2,6 +2,9 @@
 {% block title %}Available Tests{% endblock %}
 
 {% block content %}
+    <script>
+        console.log({{ role_id }});
+    </script>
     <div class="available-tests-container">
         <div class="sticky-header">
             <h2>Các bài kiểm tra hiện tại</h2>
@@ -15,15 +18,16 @@
             </div>
         </div>
 
-        {% if is_teacher %}
-            <button class="create-button" onclick="window.location.href='{% url 'create_test' %}'">+ Create New Test</button>
+        {% if role_id == 2 %}
+            <button class="create-button" onclick="window.location.href='{% url 'create_test' %}'">+ Create New Test
+            </button>
         {% endif %}
 
         <!-- Test Grid Section -->
         <div id="test-grid-container">
             <div id="test-grid" class="test-grid">
                 {% for test in tests %}
-                    <button class="test-item" onclick="window.location.href='{% if is_teacher %}{% url 'edit_test' test.0 %}{% else %}{% url 'test_detail' test.0 %}{% endif %}'">
+                    <button class="test-item" onclick="window.location.href='{% if role_id == 2 %}{% url 'edit_test' test.0 %}{% else %}{% url 'test_detail' test.0 %}{% endif %}'">
                         <span>{{ test.1 }}</span><br>
                         <span>{{ test.3 }}</span>
                     </button>

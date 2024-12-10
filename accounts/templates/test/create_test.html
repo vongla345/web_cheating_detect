@@ -14,15 +14,18 @@
         <form method="post" action="{% url 'create_test' %}" class="create-test-form"
               onsubmit="return validateSubmit();">
             {% csrf_token %}
-            <h3>Test Information</h3>
-            <label for="title">Title:</label>
+            <h3>Chi tiết bài kiểm tra</h3>
+            <label for="title">Tên bài kiểm tra</label>
             <input type="text" id="title" name="title" required>
-            <label for="description">Description:</label>
+            <label for="description">Mô tả bài kểm tra:</label>
             <input type="text" id="description" name="description">
-            <label for="amount_of_time">Amount of time:</label>
+            <label for="amount_of_time">Thời gian làm bài:</label>
             <input type="text" id="amount_of_time" name="amount_of_time" placeholder="Tính theo phút" required>
+            <label for="attempt_limit">Số lần làm bài:</label>
+            <input type="text" id="attempt_limit" name="attempt_limit">
+
             <div>
-                <h3>Select Classes</h3>
+                <h3>Chọn lớp áp dụng cho bài kiểm tra</h3>
                 {% for class in classes %}
                     <div>
                         <input type="checkbox" id="class-{{ class.0 }}" name="class_ids" value="{{ class.0 }}">

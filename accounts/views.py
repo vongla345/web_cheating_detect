@@ -4,7 +4,6 @@ from .helpers import process_excel
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.paginator import Paginator, EmptyPage
 from django.db.models import Q
-from PIL import Image
 
 from django.http import JsonResponse
 import sqlite3
@@ -274,6 +273,7 @@ def user_list(request):
 
     # Trả về dữ liệu cho template
     return render(request, 'user/user_list.html', {
+        'role_id': request.session.get('role_id'),  # ID của loại tài khoản
         'users': page_obj.object_list,  # Danh sách người dùng trên trang hiện tại
         'page_obj': page_obj,  # Đối tượng phân trang
         'search_query': search_query  # Từ khóa tìm kiếm (để hiển thị lại)
@@ -284,16 +284,19 @@ def test_list(request):
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
     role_id = request.session.get('role_id')
-    if role_id == 2:
-        tests = Test.objects.filter(created_by=request.session.get('user_id')).values_list('id', 'title', 'description')
-    elif role_id == 1:
+    if role_id == 1:
         cursor.execute(
             "select t.id, t.title, t.description, c.name, cu.id from tests t left join class_tests ct on t.id = ct.test_id left join class c on ct.class_id = c.id left join class_users cu on c.id = cu.class_id where cu.user_id = ? order by c.id",
             (request.session.get('user_id'),))
         tests = cursor.fetchall()
         conn.close()
+    else:
+        tests = Test.objects.filter(created_by=request.session.get('user_id')).values_list('id', 'title', 'description')
 
-    return render(request, 'test/test_list.html', {'tests': tests, 'role_id': 'role_id'})
+    return render(request, 'test/test_list.html', {
+        'tests': tests,
+        'role_id': role_id
+    })
 
 
 def create_test(request):
@@ -308,8 +311,10 @@ def create_test(request):
             title = test_form.cleaned_data['title']
             description = test_form.cleaned_data['description']
             amount_of_time = test_form.cleaned_data['amount_of_time']
+            attempt_limit = test_form.cleaned_data['attempt_limit']
 
             test = Test(title=title, description=description, amount_of_time=amount_of_time,
+                        attempt_limit=attempt_limit,
                         created_by_id=request.session.get('user_id'))
             test.save()
             test_id = test.id
@@ -344,6 +349,7 @@ def create_test(request):
         question_formset = QuestionFormSet(prefix='questions')
 
     return render(request, 'test/create_test.html', {
+        'role_id': request.session.get('role_id'),
         'test_form': test_form,
         'question_formset': question_formset,
         'classes': classes,
@@ -367,13 +373,15 @@ def edit_test(request, test_id):
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
 
-    test = Test.objects.filter(id=test_id).values_list('title', 'description', 'amount_of_time').first()
+    test = Test.objects.filter(id=test_id).values_list('title', 'description', 'amount_of_time',
+                                                       'attempt_limit').first()
 
     if not test:
         return HttpResponse("Test not found", status=404)
 
-    title, description, amount_of_time = test
-    test_form = TestForm(initial={'title': title, 'description': description, 'amount_of_time': amount_of_time})
+    title, description, amount_of_time, attempt_limit = test
+    test_form = TestForm(initial={'title': title, 'description': description, 'amount_of_time': amount_of_time,
+                                  'attempt_limit': attempt_limit})
 
     questions = Question.objects.filter(test_id=test_id).values_list('id', 'question_text').values_list('id',
                                                                                                         'question_text')
@@ -418,6 +426,7 @@ def edit_test(request, test_id):
                 test.title = test_form.cleaned_data['title']
                 test.description = test_form.cleaned_data['description']
                 test.amount_of_time = test_form.cleaned_data['amount_of_time']
+                test.attempt_limit = test_form.cleaned_data['attempt_limit']
                 test.save()
 
                 selected_class_ids = request.POST.getlist('class_ids')  # Lấy danh sách ID của các lớp đã chọn
@@ -465,6 +474,7 @@ def edit_test(request, test_id):
                 return redirect('test_list')
 
     return render(request, 'test/edit_test.html', {
+        'role_id': request.session.get('role_id'),
         'test_form': test_form,
         'test_id': test_id,
         'question_data': question_data,  # Truyền danh sách câu hỏi và lựa chọn
@@ -474,23 +484,35 @@ def edit_test(request, test_id):
 
 
 def test_detail(request, test_id):
+    # Lấy thông tin lịch sử làm bài kiểm tra
+    history = StudentTest.objects.filter(test_id=test_id, student_id=request.session.get('user_id')).values()
+
+    # Lấy thông tin bài thi
+    test = Test.objects.get(id=test_id)
+
+    attempt_limit = test.attempt_limit
+
+    if attempt_limit is not None:
+        attempted = attempt_limit - len(history)
+        if attempted <= 0:
+            can_test = False
+        else:
+            can_test = True
+    else:
+        attempted = "Không giới hạn"
+        can_test = True
+
     request.session['test_id'] = test_id
 
     conn = sqlite3.connect('db.sqlite3')
     cursor = conn.cursor()
 
-    # Lấy thông tin bài thi
-    cursor.execute("SELECT * FROM tests WHERE id=?", (test_id,))
-    test = cursor.fetchone()
-
-    if not test:
-        return HttpResponse("<h1>Test not found</h1><p>The test you are looking for does not exist.</p>",
-                            content_type="text/html")
-
     user = User.objects.get(id=request.session.get('user_id'))
+
     profile_picture = user.profile_picture
-    logger.info(profile_picture)
-    test_duration = test[3]
+
+    test_duration = test.amount_of_time
+
     cursor.execute('SELECT * FROM questions WHERE test_id=?', (test_id,))
     questions = cursor.fetchall()
     questions = [list(question) for question in questions]
@@ -516,7 +538,7 @@ def test_detail(request, test_id):
             'choices': choices
         })
     cursor.execute(
-        "SELECT * FROM student_tests WHERE student_id = ? AND test_id = ? AND end_time not null ORDER BY end_time DESC",
+        "SELECT * FROM student_tests WHERE student_id = ? AND test_id = ? ORDER BY start_time DESC",
         (request.session['user_id'], test_id))
     history_student_test = cursor.fetchall()
     history_student_test = [list(i) for i in history_student_test]
@@ -525,9 +547,12 @@ def test_detail(request, test_id):
         i[3] = i[3] + timedelta(hours=7)
         i[3] = i[3].strftime("%Y/%m/%d %H:%M")
 
-        i[4] = datetime.strptime(i[4], "%Y-%m-%d %H:%M:%S.%f")
-        i[4] = i[4] + timedelta(hours=7)
-        i[4] = i[4].strftime("%Y/%m/%d %H:%M")
+        if i[4] is not None:
+            i[4] = datetime.strptime(i[4], "%Y-%m-%d %H:%M:%S.%f")
+            i[4] = i[4] + timedelta(hours=7)
+            i[4] = i[4].strftime("%Y/%m/%d %H:%M")
+        else:
+            i[4] = 'Chưa nộp bài'
     history_student_test = [[i[3], i[4], i[5]] for i in history_student_test]
 
     cursor.execute('select first_name, last_name from main.users where id = ?', (request.session.get('user_id'),))
@@ -551,19 +576,23 @@ def test_detail(request, test_id):
             conn.close()
             return JsonResponse({'status': 'started', 'test_duration': test_duration})
 
-        # Người dùng nộp bài thi
-        elif action == 'submit_test':
+        else:
+            # Người dùng nộp bài thi
             del request.session['test_id']
             total_question = len(questions_data)
             score = 0
 
-            for question in questions_data:
-                question_id = str(question['id'])
-                correct_answer = next((choice[0] for choice in question['choices'] if choice[3]), None)
-                user_answer = request.POST.get(question_id)
+            if action == 'submit_test':
+                for question in questions_data:
+                    question_id = str(question['id'])
+                    correct_answer = next((choice[0] for choice in question['choices'] if choice[3]), None)
+                    user_answer = request.POST.get(question_id)
 
-                if user_answer and int(user_answer) == correct_answer:
-                    score += 1
+                    if user_answer and int(user_answer) == correct_answer:
+                        score += 1
+            elif action == 'report_cheating':
+                score = 0
+
             score_db = (score / total_question) * 10
             cursor.execute("UPDATE student_tests SET score = ?, end_time = ? WHERE id = ?",
                            (score_db, datetime.now(), request.session['student_test_id']))
@@ -584,7 +613,7 @@ def test_detail(request, test_id):
             student_name = cursor.fetchone()
             student_test.append(student_name[0] + ' ' + student_name[1])
 
-            test_name = test[1]
+            test_name = test.title
 
             student_test.append(score)
             student_test.append(total_question - score)
@@ -597,10 +626,16 @@ def test_detail(request, test_id):
             return render(request, 'test/result.html', {'student_test': student_test, 'total_question': total_question})
 
     conn.close()
-    return render(request, 'test/test_detail.html',
-                  {'name': name, 'test': test, 'questions_data': questions_data,
-                   'history_student_test': history_student_test,
-                   'profile_picture': profile_picture})
+    return render(request, 'test/test_detail.html',{
+        'role_id': request.session.get('role_id'),
+        'can_test': can_test,
+        'name': name,
+        'test': test,
+        'attempted': attempted,
+        'questions_data': questions_data,
+        'history_student_test': history_student_test,
+        'profile_picture': profile_picture
+    })
 
 
 @csrf_exempt
@@ -665,7 +700,10 @@ def class_list(request):
 
     logger.info(f"Classes: {classes}")
 
-    return render(request, 'class/class_list.html', {'classes': classes})
+    return render(request, 'class/class_list.html', {
+        'role_id': role_id,
+        'classes': classes
+    })
 
 
 def class_detail(request, class_id):
@@ -673,4 +711,7 @@ def class_detail(request, class_id):
         'user__id', 'user__username', 'user__first_name', 'user__last_name', 'user__email')
     logger.info(f"Students: {student_list}")
 
-    return render(request, 'class/class_detail.html', {'students': student_list})
+    return render(request, 'class/class_detail.html', {
+        'role_id': request.session.get('role_id'),
+        'students': student_list
+    })

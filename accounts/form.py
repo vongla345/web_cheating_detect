@@ -64,3 +64,4 @@ class TestForm(forms.Form):
     title = forms.CharField(max_length=255, required=True, label="Test Title")
     description = forms.CharField(max_length=255, required=False, label="Description")
     amount_of_time = forms.IntegerField(required=True, label="Amount of time")
+    attempt_limit = forms.IntegerField(required=False, label="Attempt Limit")
