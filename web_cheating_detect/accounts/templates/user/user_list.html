@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Quản lý người dùng{% endblock %}
+{% block content %}
+
+    <div class="management-container">
+        <div class="search-section">
+            <form method="get" action=".">
+                <input
+                        type="text"
+                        class="search-input"
+                        name="search"
+                        placeholder="Tìm kiếm..."
+                        value="{{ search_query|default:'' }}"
+                >
+                <button type="submit" class="search-btn">Tìm kiếm</button>
+                {% if search_query %}
+                    <a href="." class="clear-filter-btn">Xóa bộ lọc</a>
+                {% endif %}
+            </form>
+        </div>
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tài khoản</th>
+                <th>Họ và tên</th>
+                <th>Email</th>
+                <th>Số điện thoại</th>
+                <th>Giới tính</th>
+                <th>Ngày sinh</th>
+                <th>Loại tài khoản</th>
+                <th class="action-header">Hành động</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.0 }}</td>
+                    <td>{{ user.1 }}</td>
+                    <td>{{ user.2 }}</td>
+                    <td>{{ user.3 }}</td>
+                    <td>{{ user.4 }}</td>
+                    <td>{{ user.5 }}</td>
+                    <td>{{ user.6 }}</td>
+                    <td>{{ user.7 }}</td>
+                    <td class="action-cell">
+                        <div class="action-buttons">
+                            <a href="{% url 'user_detail' user.0 %}" class="action-btn view-btn" title="Xem chi tiết">
+                                <i class='bx bx-list-ul'></i>
+                            </a>
+                            <button class="action-btn delete-row-btn" onclick="confirmDelete({{ user.0 }})" title="Xóa">
+                                <i class='bx bxs-x-circle'></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+            <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="page-btn">Trước</a>
+                {% else %}
+                    <a href="#" class="page-btn disabled">Trước</a>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num == page_obj.number %}
+                        <a class="page-btn active">{{ num }}</a>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}" class="page-btn">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="page-btn">Tiếp</a>
+                {% else %}
+                    <a href="#" class="page-btn disabled">Tiếp</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function confirmDelete(userId) {
+            if (confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
+                fetch(`/delete-user/${userId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken') // Đảm bảo gửi CSRF token
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            // Reload trang để cập nhật danh sách user
+                            location.reload();
+                        } else {
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Có lỗi xảy ra khi xóa người dùng.');
+                    });
+            }
+        }
+
+        // Hàm để lấy CSRF token từ cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Kiểm tra cookie nào bắt đầu bằng tên
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.querySelectorAll('.sort-icons').forEach(icon => {
+            icon.addEventListener('click', function () {
+                const column = this.parentElement.textContent.trim();
+                console.log('Sorting by:', column);
+            });
+        });
+
+        document.querySelector('.search-input').addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            console.log('Searching for:', searchTerm);
+        });
+    </script>
+
+{% endblock %}

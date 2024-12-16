@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <script src="{% static 'js/script.js' %}" defer></script>
+    <script>
+        document.querySelectorAll('.form-group input').forEach(input => {
+            input.addEventListener('input', () => {
+                const errorText = input.closest('.form-group').querySelector('.error-text');
+                if (errorText) {
+                    errorText.style.display = 'none'; // Ẩn lỗi khi người dùng nhập lại
+                }
+            });
+        });
+
+    </script>
+</head>
+<body class="register-page-body">
+<div class='register-page'>
+    <div class="register-container">
+        <div class="logo">
+            <img src="{% static 'assets/user_placeholder.png' %}" alt="Azota Logo">
+        </div>
+        <div class="tabs">
+            <div id="student-tab" class="tab active" onclick="switchAccountType('student')">Học sinh</div>
+            <div id="teacher-tab" class="tab" onclick="switchAccountType('teacher')">Giáo viên</div>
+        </div>
+        <h2>Đăng ký</h2>
+
+        <!-- Hiển thị thông báo lỗi nếu có -->
+        {% if messages %}
+            <div class="error-message">
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form class="register-form" method="POST">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <!-- Trường ẩn lưu loại tài khoản -->
+            <input type="hidden" id="account-type" name="role" value="student">
+
+            <!-- Trường thông tin người dùng -->
+            <div class="form-group">
+                <label>{{ form.username }}</label>
+                <label class="error-text">{{ form.username.errors }}</label>
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.first_name }}</label>
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.last_name }}</label>
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.email }}</label>
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.password1 }}</label>
+            </div>
+
+            <div class="form-group">
+                <label>{{ form.password2 }}</label>
+                <label class="error-text">{{ form.password2.errors }}</label>
+            </div>
+
+            <!-- Điều khoản sử dụng -->
+            <p>Bằng cách ấn vào nút "Đăng ký", tôi đồng ý với <a href="#">Điều Khoản Sử Dụng</a> và <a href="#">Chính
+                Sách
+                Bảo Mật</a>.</p>
+            <!-- Nút đăng ký -->
+            <button type="submit" class="btn btn-primary">Đăng ký</button>
+
+            <p>Bạn đã có tài khoản? <a href={% url 'login' %}>Đăng nhập</a></p>
+
+        </form>
+    </div>
+</div>
+</body>
+</html>

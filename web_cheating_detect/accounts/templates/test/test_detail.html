@@ -1,0 +1,588 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Phòng chờ và Bài kiểm tra{% endblock %}
+
+{% block content %}
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/N1j37CgN9/";
+        let model, webcam, maxPredictions, labelContainer;
+        let isPredicting = false;  // Biến kiểm soát trạng thái dự đoán
+        let isCameraRunning = false;
+        let isAuthenticated = false;
+
+
+        async function initCamera() {
+            if (isCameraRunning) {
+                alert("Camera đã được khởi tạo.");
+                return;
+            }
+            try {
+                if ("{{ profile_picture }}" === "None" || "{{ profile_picture }}" === "") {
+                    alert("Không tìm thấy ảnh đại diện. Vui lòng cập nhật ảnh trước khi xác thực.");
+                    return null;
+                }
+                document.getElementById("checting-detect-container").style.display = "block";
+
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
+
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                const flip = true;
+                webcam = new tmImage.Webcam(200, 200, flip);
+                await webcam.setup();
+                await webcam.play();
+
+                // Thêm canvas của webcam vào container
+                window.requestAnimationFrame(loop);
+
+                // Thêm các nhãn lớp dự đoán
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                labelContainer = document.getElementById("label-container");
+                for (let i = 0; i < maxPredictions; i++) {
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+
+                // Camera khởi tạo thành công
+                isCameraRunning = true;
+
+                alert("Đưa mặt vào camera để bắt đầu xác thực khuôn mặt.");
+
+                // Bắt đầu vòng lặp xác thực
+                await startFaceVerification();
+                const startTestBtn = document.getElementById('start-test-btn');
+                startTestBtn.classList.remove('hidden-button');
+                startTestBtn.classList.add('active-button');
+            } catch (error) {
+                alert("Không thể khởi tạo camera hoặc tải mô hình. Vui lòng kiểm tra lại.");
+                console.error("Camera initialization error:", error);
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            if (isPredicting) {
+                await predict();
+            }
+            window.requestAnimationFrame(loop);
+        }
+
+        async function fetchImageFromURL(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.error("Lỗi khi tải ảnh tham chiếu:", response.statusText);
+                    return null;
+                }
+                return await response.blob();
+            } catch (error) {
+                console.error("Lỗi khi tải ảnh từ URL:", error);
+                return null;
+            }
+        }
+
+        async function sendFaceToServer(webcamBlob) {
+            try {
+                const serverBaseUrl = `${window.location.origin.replace(/:\d+$/, '')}:8081`;
+
+                // Tải ảnh tham chiếu từ profile_picture.url
+                const profilePictureURL = "{{ profile_picture }}";
+                if (!profilePictureURL) {
+                    console.error("URL ảnh tham chiếu không hợp lệ.");
+                    return;
+                }
+                const referenceBlob = await fetchImageFromURL(profilePictureURL);
+                if (!referenceBlob) {
+                    console.error("Blob ảnh tham chiếu rỗng. Dừng gửi yêu cầu.");
+                    return null;
+                }
+                if (!referenceBlob || !webcamBlob) {
+                    console.error("Dữ liệu blob không hợp lệ. Dừng gửi yêu cầu.");
+                    return null;
+                }
+                // Tạo form data
+                const formData = new FormData();
+                formData.append('reference_image', referenceBlob, "reference.jpg");
+                formData.append('webcam_image', webcamBlob, "webcam.jpg");
+                console.log(`API URL: ${serverBaseUrl}/authenticate/`);
+
+                const response = await fetch(`${serverBaseUrl}/authenticate/`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                return await response.json();
+            } catch (error) {
+                console.error("Lỗi khi gửi dữ liệu đến server:", error);
+                return null;
+            }
+        }
+
+        // Hàm lấy ảnh từ webcam
+        async function captureWebcamImage() {
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+
+            // Set canvas size to match webcam size
+            canvas.width = webcam.canvas.width;
+            canvas.height = webcam.canvas.height;
+
+            // Vẽ hình ảnh từ webcam lên canvas
+            context.drawImage(webcam.canvas, 0, 0);
+
+            /*
+            // Hiển thị ảnh trên giao diện
+            const previewImage = document.getElementById("previewImage");
+            previewImage.style.display = "block"; // Hiển thị thẻ img
+            previewImage.src = canvas.toDataURL("image/jpeg"); // Gán ảnh từ canvas vào thẻ img
+            */
+            // Lấy ảnh dưới dạng Blob để gửi API
+            return await new Promise((resolve) =>
+                canvas.toBlob(resolve, "image/jpeg")
+            );
+        }
+
+
+        // Hàm bắt đầu xác thực khuôn mặt
+        async function startFaceVerification() {
+            while (true) {
+                // Chụp ảnh từ webcam
+                const webcamImageBlob = await captureWebcamImage();
+                console.log(webcamImageBlob)
+                // Gửi ảnh qua server và nhận kết quả
+                const result = await sendFaceToServer(webcamImageBlob);
+
+                // Hiển thị kết quả lên giao diện
+                /*
+                if (result) {
+                    document.getElementById("result-container").innerText =
+                        `Similarity: ${result.similarity.toFixed(2)}% - Status: ${result.status}`;
+                }
+                */
+                console.log(result)
+                // Nếu pass xác thực, dừng kiểm tra
+                if (result && result.status === "approved") {
+                    alert("Khuôn mặt hợp lệ! Xác thực thành công.");
+                    isAuthenticated = true;
+                    break;
+                }
+
+                // Nếu không pass, đợi 1 giây trước khi tiếp tục
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        }
+
+
+        let dataBuffer = [];
+        const updateInterval = 5000;  // 5 seconds for sending data
+        const warningDuration = 5000;  // 5 seconds for warning display
+        const sendInterval = 5000;  // Send every 5 seconds
+        let lastSentTime = 0;
+        let lastPushTime = 0;  // Biến lưu thời gian push cuối cùng
+        let alertEndTime = 0; // Thời gian kết thúc của cảnh báo hiện tại (tính bằng mili giây)
+        let sentMessage = false; // Biến kiểm tra đã gửi cảnh báo hay chưa
+        let cheatingDuration = 0; // Tổng thời gian liên tục trong trạng thái "Cheating" (tính bằng giây)
+        const cheatingThreshold = 10;
+        let faceVerificationFails = 0; // Biến đếm số lần xác thực không thành công
+        let lastFaceVerificationTime = 0; // Thời gian gọi xác thực khuôn mặt gần nhất
+        const faceVerificationInterval = 5000; // Khoảng thời gian giữa các lần xác thực (5 giây)
+
+
+        async function predict() {
+            const currentTime = new Date().getTime();  // Lấy thời gian hiện tại tính bằng mili giây
+
+            if (currentTime - lastFaceVerificationTime >= faceVerificationInterval) { // Kiểm tra nếu đủ thời gian gọi xác thực khuôn mặt
+                lastFaceVerificationTime = currentTime; // Cập nhật thời gian xác thực gần nhất
+                captureWebcamImage().then(webcamImageBlob => {
+                    sendFaceToServer(webcamImageBlob).then(result => {
+                        console.log(result);
+                        if (!result || result.status !== "approved") {
+                            faceVerificationFails += 1; // Tăng số lần xác thực không thành công
+                            console.log(result)
+                            console.warn("Face verification failed", faceVerificationFails);
+                            alertEndTime = Math.max(alertEndTime, currentTime + 250);
+                            if (faceVerificationFails >= 3) {
+                                alert("Xác thực khuôn mặt thất bại! Bài kiểm tra sẽ tự động nộp.");
+                                reportCheating();
+                            }
+                        } else {
+                            console.log("Xác thực gương mặt thành công");
+                        }
+                    }).catch(error => {
+                        console.error("Error during face verification:", error);
+                    });
+                });
+            }
+
+
+            // Run the prediction
+            const prediction = await model.predict(webcam.canvas);
+
+            const normalPrediction = prediction.find(p => p.className === 'Normal') || {probability: 0};
+            const rightPrediction = prediction.find(p => p.className === 'Right') || {probability: 0};
+            const leftPrediction = prediction.find(p => p.className === 'Left') || {probability: 0};
+            const downPrediction = prediction.find(p => p.className === 'Down') || {probability: 0};
+
+            // Xác định className và probability
+            let className = 'Normal';
+            let probability = normalPrediction.probability;
+
+            // Nếu xác suất của 'Right', 'Left', hoặc 'Down' cao hơn 'Normal', gộp chúng thành 'Cheating'
+            if (Math.max(rightPrediction.probability, leftPrediction.probability, downPrediction.probability) > normalPrediction.probability) {
+                className = 'Cheating';
+                // Lấy xác suất cao nhất trong các lớp 'Right', 'Left', 'Down'
+                probability = Math.max(rightPrediction.probability, leftPrediction.probability, downPrediction.probability);
+            }
+
+            // Làm tròn giá trị xác suất
+            probability = parseFloat(probability.toFixed(2));
+
+
+            // Kiểm tra xem đã đủ 1 giây để push dữ liệu vào dataBuffer
+            if (currentTime - lastPushTime >= 1000) {  // 1000 mili giây = 1 giây
+                // Thêm dữ liệu vào dataBuffer
+                dataBuffer.push({
+                    className: className,
+                    probability: probability
+                });
+
+                // Cập nhật thời gian push dữ liệu
+                lastPushTime = currentTime;
+
+                if (className === 'Cheating') {
+                    cheatingDuration += 1; // Tăng 1 giây nếu vẫn là "Cheating"
+                } else {
+                    cheatingDuration = 0; // Reset nếu quay về "Normal"
+                }
+                // Nếu đủ ngưỡng thời gian 10 giây thì gửi cảnh báo qua Telegram
+                if (cheatingDuration >= cheatingThreshold && !sentMessage) {
+                    await sendTelegramAlert("Thí sinh {{ name }} đã gian lận liên tục trong 10 giây!");
+                    cheatingDuration = 0; // Reset sau khi gửi cảnh báo
+                    sentMessage = true; // Đánh dấu đã gửi cảnh báo
+                    console.log("Sent cheating alert to Telegram");
+                    alert("Bạn đã gian lận liên tục, bài kiểm tra sẽ tự động nộp");
+                    reportCheating()
+                }
+            }
+            // Tìm lớp có xác suất cao nhất và cập nhật hiển thị trên giao diện
+            // Cập nhật hiển thị cảnh báo
+            if (className === 'Cheating') {
+                // Nếu là "Cheating", cập nhật thời gian kết thúc cảnh báo
+                alertEndTime = Math.max(alertEndTime, currentTime + 250);
+            }
+
+            // Hiển thị hoặc ẩn cảnh báo dựa trên thời gian hiện tại
+            if (currentTime < alertEndTime) {
+                labelContainer.innerHTML = "<div style='color: red; font-weight: bold;'>Gian Lận</div>"; // Hiển thị cảnh báo gian lận
+            } else {
+                labelContainer.innerHTML = ""; // Xóa cảnh báo nếu hết thời gian
+            }
+
+            // Kiểm tra thời gian để gửi dữ liệu lên server (5 giây)
+            if (currentTime - lastSentTime >= sendInterval) {
+                console.log("Sending data to server:", dataBuffer);
+                await sendDataToServer(summarizeData(dataBuffer));  // Gửi dữ liệu lên server
+                dataBuffer = [];  // Reset buffer sau khi gửi
+                lastSentTime = currentTime;  // Cập nhật thời gian gửi dữ liệu
+            }
+        }
+
+        function summarizeData(buffer) {
+            //const total = buffer.length;
+            const classCounts = {Normal: 0, Cheating: 0};
+            let cheatingDuration = 0;
+
+            buffer.forEach(item => {
+                if (item.className === "Normal") {
+                    classCounts.Normal++;
+                } else {
+                    classCounts.Cheating++; // Group Right, Left, Down into "Cheating"
+                    cheatingDuration++; // Assume each frame represents 1 second
+                }
+            });
+
+            return {
+                dominantClass: classCounts.Cheating > classCounts.Normal ? "Cheating" : "Normal",
+                cheatingDuration,
+                switchCount: countSwitches(buffer)
+            };
+        }
+
+        function countSwitches(buffer) {
+            let lastClass = buffer[0].className;
+            let switches = 0;
+
+            buffer.forEach(item => {
+                if (item.className !== lastClass) {
+                    switches++;
+                    lastClass = item.className;
+                }
+            });
+
+            return switches;
+        }
+
+        async function sendTelegramAlert(message) {
+            const botToken = "7689072008:AAE-OqwZi6HERQxA3diHmBr_TZo2RK6y9Ps"; // Thay bằng token bot của bạn
+            const chatId = "-4581491703";    // Thay bằng chat ID của nhóm hoặc người dùng
+
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                    }),
+                });
+
+                const result = await response.json();
+                if (!result.ok) {
+                    console.error("Failed to send Telegram alert:", result.description);
+                } else {
+                    console.log("Telegram alert sent successfully:", message);
+                }
+            } catch (error) {
+                console.error("Error sending Telegram alert:", error);
+            }
+        }
+
+        async function sendDataToServer(data) {
+            const response = await fetch('/save_prediction/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+            console.log(result); // Log server response
+        }
+
+        let remainingTime;  // Tổng thời gian còn lại (giây)
+        let timerInterval;
+
+        function startTest() {
+            if (!isCameraRunning) {
+                alert("Vui lòng bật camera trước khi bắt đầu bài kiểm tra.");
+                return;
+            }
+            if (!isAuthenticated) {
+                alert("Vui lòng xác thực khuôn mặt trước khi bắt đầu bài kiểm tra.");
+                return;
+            }
+            const historyTestContainer = document.getElementById("history-test-container");
+            if (historyTestContainer.style.display === "block") {
+                historyTestContainer.style.display = "none";
+            }
+            // Gửi yêu cầu tới backend để khởi tạo bài kiểm tra
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: new URLSearchParams({action: 'start_test'}),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.status === 'started') {
+                        // Hiển thị bộ đếm thời gian và form bài kiểm tra
+                        document.getElementById('start-test-btn').style.display = 'none';
+                        document.getElementById('timer-container').style.display = 'block';
+                        document.getElementById('test-form').style.display = 'block';
+                        document.getElementById("waiting-room").style.display = "none";
+                        document.getElementById("history-button").style.display = "none";
+                        document.getElementById("test-detail").style.display = "block";
+
+                        // Bắt đầu đếm ngược thời gian
+                        isPredicting = true;
+
+                        remainingTime = data.test_duration * 60;  // Chuyển từ phút sang giây
+                        startCountdown();
+                    }
+                });
+        }
+
+        function startCountdown() {
+            const timerElement = document.getElementById('timer');
+
+            timerInterval = setInterval(() => {
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    alert('Hết thời gian! Bài kiểm tra sẽ tự động nộp.');
+                    document.getElementById('test-form').submit();  // Tự động nộp bài
+                } else {
+                    const minutes = Math.floor(remainingTime / 60);
+                    const seconds = remainingTime % 60;
+                    timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    remainingTime--;
+                }
+            }, 1000);
+        }
+
+        function viewHistory() {
+            const historyTestContainer = document.getElementById("history-test-container");
+            if (historyTestContainer.style.display === "block") {
+                historyTestContainer.style.display = "none";
+            } else {
+                historyTestContainer.style.display = "block";
+            }
+        }
+
+
+        let formSubmitted = false;
+
+        // Xử lý sự kiện beforeunload
+        document.addEventListener("visibilitychange", () => {
+            if (isPredicting && document.hidden && !formSubmitted) {
+                if (confirm("Bạn đang rời khỏi bài kiểm tra. Nếu tiếp tục, bài kiểm tra sẽ tự động nộp.")) {
+                    submitForm();
+                }
+            }
+        });
+
+        window.addEventListener("unload", () => {
+            console.log("unload event triggered"); // Kiểm tra sự kiện unload
+            if (isPredicting && !formSubmitted) {
+                submitForm();
+            }
+        });
+
+        // Hàm nộp form
+        function submitForm() {
+            const form = document.getElementById("test-form");
+            if (form) {
+                form.submit();
+                formSubmitted = true; // Đánh dấu đã nộp bài
+            }
+        }
+
+        function reportCheating() {
+            const form = document.getElementById("test-form");
+            if (form) {
+                const cheatingInput = document.createElement("input");
+                cheatingInput.type = "hidden";
+                cheatingInput.name = "action";
+                cheatingInput.value = "report_cheating";
+
+                form.appendChild(cheatingInput);
+                form.submit(); // Gửi form trực tiếp
+            }
+        }
+
+
+    </script>
+    <!--
+    <img id="previewImage" alt="Webcam Preview" style="display: none; max-width: 100%; border: 1px solid #ccc;">
+    -->
+    <div id="test-page">
+        <div id="timer-container" style="display: none">
+            <span id="timer-label">Thời gian còn lại:</span>
+            <span id="timer"></span>
+        </div>
+        <div id="checting-detect-container">
+            <div id="webcam-container"></div>
+            <div id="label-container"></div>
+        </div>
+        <h2>{{ test.title }}</h2>
+        <div id="waiting-room">
+            <div class="info">
+                <div><i class="fa fa-clock-o"></i> Thời gian làm bài: {{ test.amount_of_time }} phút</div>
+                <div><i class="fa fa-list"></i> Số lượng câu hỏi: {{ questions_data|length }} </div>
+                <div><i class="fa fa-file-text"></i> Loại đề: Trắc nghiệm</div>
+                <div><i class="fa fa-file-text"></i>Số lần làm bài còn lại:
+                    {{ attempted }}{% if test.attempt_limit is not None %}/{{ test.attempt_limit }} {% endif %}</div>
+            </div>
+            <div id="start-buttons">
+                <button
+                        id="init-camera-btn"
+                        class="{% if not can_test %}hidden-button{% endif %}"
+                        onclick="initCamera()">
+                    Bật Camera & Xác thực
+                </button>
+                <button id="start-test-btn" class="hidden-button" onclick="startTest()">Bắt đầu Kiểm tra</button>
+            </div>
+        </div>
+        <button id="history-button" onclick="viewHistory()">Xem lịch sử làm bài</button>
+        <div id="history-test-container">
+            {% for his_test in history_student_test %}
+                <div id="history-test">
+                    <p class="score-his">Điểm của bạn: <span>{{ his_test.2 }}</span></p>
+                    <div class="row">
+                        <img src="{% static "assets/clock.png" %}" alt="Thời gian làm bài" class="icon">
+                        <span class="label">Thời gian làm bài</span>
+                        <span class="value">{{ his_test.0 }}</span>
+                    </div>
+                    <div class="row">
+                        <img src="{% static "assets/tasks.png" %}" alt="Thời gian nộp bài" class="icon">
+                        <span class="label">Thời gian nộp bài</span>
+                        <span class="value">{{ his_test.1 }}</span>
+                    </div>
+                    <div class="row">
+                        <img src="{% static "assets/danger.png" %}" alt="Tổng số câu hỏi trong đề" class="icon">
+                        <span class="label">Tổng số câu hỏi trong đề</span>
+                        <span class="value">{{ questions_data|length }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div id="test-detail">
+            <form id="test-form" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="submit_test">
+                <!-- Phần hiển thị câu hỏi -->
+                <div id="questions-container">
+                    {% for question in questions_data %}
+                        <div class="question" id="question-{{ question.id }}" style="display: none;">
+                            <h2 class="question-title">Câu {{ forloop.counter }}: {{ question.question_text }}</h2>
+                            {% for choice in question.choices %}
+                                <label class="answer-choice choice-wrapper">
+                                    <input type="radio" name="{{ question.id }}" value="{{ choice.0 }}"
+                                           onchange="updateQuestionStatus({{ question.id }})">
+                                    <span class="choice-label">{{ choice.4 }}</span>
+                                    <span class="choice-text">{{ choice.1 }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="navigation-buttons">
+                    <button type="button" onclick="prevQuestion()" id="prev-btn" class="nav-btn">
+                        <i class="fas fa-arrow-left"></i> Câu trước
+                    </button>
+                    <button type="button" onclick="nextQuestion()" id="next-btn" class="nav-btn">
+                        Câu sau <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <!-- Bảng danh sách câu hỏi -->
+                <div id="question-grid">
+                    {% for question in questions_data %}
+                        <button type="button" class="question-btn" id="question-btn-{{ question.id }}"
+                                onclick="showQuestion({{ question.id }})">
+                            {{ forloop.counter }}
+                        </button>
+                    {% endfor %}
+                </div>
+
+                <div class="submit-container">
+                    <button type="submit" class="submit-btn" onclick="return checkCompletion()">
+                        <i class="fas fa-paper-plane"></i> Nộp bài
+                    </button>
+                </div>
+            </form>
+        </div>
+        <script src="{% static 'js/script.js' %}"></script>
+    </div>
+
+{% endblock %}

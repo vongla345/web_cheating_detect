@@ -1,0 +1,124 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+    <title>{% block title %}Trang Web{% endblock %}</title>
+</head>
+<body>
+<nav class="sidebar">
+    <header>
+        <div class="image-text">
+                <span class="image">
+                    <img src="{% static 'assets/logo.png' %}" alt="Logo">
+                </span>
+
+            <div class="text header-text">
+                <span class="name">Cheating Detect</span>
+                <span class="profession">Developer</span>
+            </div>
+        </div>
+
+        <i class='bx bx-chevron-right toggle'></i>
+    </header>
+
+    <div class="menu-bar">
+        <div class="menu">
+            <ul class="menu-links">
+                <li class="nav-link">
+                    <a href='{% url 'profile' %}'>
+                        <i class='bx bx-user icon'></i>
+                        <span class="text nav-text">Thông tin người dùng</span>
+                    </a>
+                </li>
+                {% if role_id == 3 %}
+                    <li class="nav-link">
+                        <a href='{% url 'user_list' %}'>
+                            <i class='bx bxs-user-detail icon'></i>
+                            <span class="text nav-text">Danh sách người dùng</span>
+                        </a>
+                    </li>
+                {% endif %}
+                {% if role_id == 2 or role_id == 3 %}
+                    <li class="nav-link">
+                        <a href='{% url 'class_list' %}'>
+                            <i class='bx bx-grid icon'></i>
+                            <span class="text nav-text">Danh sách lớp</span>
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="nav-link">
+                    <a href='{% url 'test_list' %}'>
+                        <i class='bx bxs-graduation icon'></i>
+                        <span class="text nav-text">Bài kiểm tra</span>
+                    </a>
+                </li>
+
+                <li class="nav-link">
+                    <a href='#'>
+                        <i class='bx bx-bell icon'></i>
+                        <span class="text nav-text">Thông báo</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="bottom content">
+            <li class="nav-link">
+                <a href='{% url 'logout' %}'>
+                    <i class='bx bx-log-out icon'></i>
+                    <span class="text nav-text">Đăng xuất</span>
+                </a>
+            </li>
+        </div>
+    </div>
+</nav>
+<section class="home">
+    <div class="text">
+        {% block content %}
+        {% endblock %}
+    </div>
+</section>
+<script>
+    const body = document.querySelector("body"),
+        sidebar = document.querySelector(".sidebar"),
+        toggle = document.querySelector(".toggle"),
+        searchBtn = document.querySelector(".search-box");
+
+    // Kiểm tra trạng thái sidebar trong sessionStorage khi tải trang
+    document.addEventListener("DOMContentLoaded", () => {
+        const sidebarState = sessionStorage.getItem("sidebarState");
+        if (sidebarState === "close") {
+            sidebar.classList.add("close", "no-transition"); // Thêm lớp no-transition khi tải trang
+        } else {
+            sidebar.classList.remove("close", "no-transition");
+        }
+
+        // Loại bỏ lớp no-transition sau khi áp dụng trạng thái ban đầu
+        setTimeout(() => {
+            sidebar.classList.remove("no-transition");
+        }, 50); // Delay nhỏ để không ảnh hưởng tới hiệu ứng
+    });
+
+    // Lắng nghe sự kiện click để đóng/mở sidebar
+    toggle.addEventListener("click", () => {
+        sidebar.classList.toggle("close");
+        saveSidebarState(); // Gọi hàm lưu trạng thái mỗi khi sidebar thay đổi
+    });
+
+    // Hàm lưu trạng thái sidebar vào sessionStorage
+    function saveSidebarState() {
+        if (sidebar.classList.contains("close")) {
+            sessionStorage.setItem("sidebarState", "close");
+        } else {
+            sessionStorage.setItem("sidebarState", "open");
+        }
+    }
+
+</script>
+</body>
+</html>

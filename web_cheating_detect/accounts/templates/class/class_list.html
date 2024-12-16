@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}Quản lý người dùng{% endblock %}
+{% block content %}
+
+    <div class="management-container">
+        <div class="search-section">
+            <form method="get" action=".">
+                <input
+                        type="text"
+                        class="search-input"
+                        name="search"
+                        placeholder="Tìm kiếm..."
+                        value="{{ search_query|default:'' }}"
+                >
+                <button type="submit" class="search-btn">Tìm kiếm</button>
+                {% if search_query %}
+                    <a href="." class="clear-filter-btn">Xóa bộ lọc</a>
+                {% endif %}
+            </form>
+        </div>
+        {% if role_id == 3 %}
+            <button class="create-button" onclick="window.location.href='{% url 'create_class' %}'">+ Thêm lớp mới
+            </button>
+        {% endif %}
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên lớp</th>
+                <th>Năm học</th>
+                {% if role_id == 3 %}
+                    <th>Giáo viên chủ nhiệm</th>
+                {% endif %}
+                <th class="action-header">Hành động</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for class in classes %}
+                <tr>
+                    <td>{{ class.0 }}</td>
+                    <td>{{ class.1 }}</td>
+                    <td>{{ class.2 }}</td>
+                    {% if role_id == 3 %}
+                        <td>
+                            <a href="{% url 'user_detail' class.3 %}">
+                                {{ class.4 }} {{ class.5 }}
+                            </a>
+                        </td>
+                    {% endif %}
+                    <td class="action-cell">
+                        <div class="action-buttons">
+                            <a href="{% url 'class_detail' class.0 %}" class="action-btn view-btn" title="Xem chi tiết">
+                                <i class='bx bx-list-ul'></i>
+                            </a>
+                            {% if role_id == 3 %}
+                                <button class="action-btn delete-row-btn" onclick="confirmDelete({{ class.0 }})"
+                                        title="Xóa">
+                                    <i class='bx bxs-x-circle'></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+            <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="page-btn">Trước</a>
+                {% else %}
+                    <a href="#" class="page-btn disabled">Trước</a>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num == page_obj.number %}
+                        <a class="page-btn active">{{ num }}</a>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}" class="page-btn">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="page-btn">Tiếp</a>
+                {% else %}
+                    <a href="#" class="page-btn disabled">Tiếp</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function confirmDelete(classId) {
+            if (confirm('Bạn có chắc chắn muốn xóa lớp học này?')) {
+                fetch(`/delete_class/${classId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken') // Đảm bảo gửi CSRF token
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            // Reload trang để cập nhật danh sách user
+                            location.reload();
+                        } else {
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Có lỗi xảy ra khi xóa lớp học.');
+                    });
+            }
+        }
+
+        // Hàm để lấy CSRF token từ cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Kiểm tra cookie nào bắt đầu bằng tên
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.querySelectorAll('.sort-icons').forEach(icon => {
+            icon.addEventListener('click', function () {
+                const column = this.parentElement.textContent.trim();
+                console.log('Sorting by:', column);
+            });
+        });
+
+        document.querySelector('.search-input').addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            console.log('Searching for:', searchTerm);
+        });
+    </script>
+
+{% endblock %}

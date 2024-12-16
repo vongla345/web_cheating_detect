@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Available Tests{% endblock %}
+
+{% block content %}
+    <script>
+        console.log({{ role_id }});
+    </script>
+    <div class="available-tests-container">
+        <div class="sticky-header">
+            <h2>Các bài kiểm tra hiện tại</h2>
+            <div class="search-container">
+                <input
+                        type="text"
+                        id="search-bar"
+                        placeholder="Tìm kiếm bài kiểm tra..."
+                        onkeyup="filterTests()"
+                />
+            </div>
+        </div>
+
+        {% if role_id == 2 or role_id == 3 %}
+            <button class="create-button" onclick="window.location.href='{% url 'create_test' %}'">+ Tạo bài kiểm tra mới
+            </button>
+        {% endif %}
+
+        <!-- Test Grid Section -->
+        <div id="test-grid-container">
+            <div id="test-grid" class="test-grid">
+                {% for test in tests %}
+                    <button class="test-item" onclick="window.location.href='{% if role_id == 2 or role_id == 3 %}{% url 'edit_test' test.0 %}{% else %}{% url 'test_detail' test.0 %}{% endif %}'">
+                        <span>{{ test.1 }}</span><br>
+                        <span>{{ test.3 }}</span>
+                    </button>
+
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        function filterTests() {
+            const searchInput = document.getElementById('search-bar').value.toLowerCase();
+            const testItems = document.querySelectorAll('.test-item');
+
+            testItems.forEach(item => {
+                const testName = item.textContent.toLowerCase();
+                if (testName.includes(searchInput)) {
+                    item.style.display = 'block'; // Show the test if it matches the search
+                } else {
+                    item.style.display = 'none'; // Hide the test if it doesn't match
+                }
+            });
+        }
+
+    </script>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% block title %} Chi tiết lớp học {% endblock %}
+
+{% block content %}
+    <div class="management-container">
+            <h1 class="class-info-title">Thông tin lớp học</h1>
+            <div class="class-info-details">
+                <p><strong>Tên lớp:</strong> {{ class_info.name }}</p>
+                <p><strong>Giáo viên chủ nhiệm:</strong>
+                    {% if role_id == 3 %}
+                        <a href="{% url 'user_detail' teacher.0 %}" class="teacher-link">
+                            {{ teacher.1 }} {{ teacher.2 }}
+                        </a>
+                    {% else %}
+                        {{ teacher.1 }} {{ teacher.2 }}
+                    {% endif %}
+                </p>
+                <p><strong>Năm học:</strong> {{ class_info.school_year }}</p>
+            </div>
+
+            <h2 class="class-student-title">Danh sách học sinh</h2>
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tài khoản</th>
+                <th>Họ và tên</th>
+                <th>Email</th>
+                <th class="action-header">Hành động</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for student in students %}
+                <tr>
+                    <td>{{ student.0 }}</td>
+                    <td>{{ student.1 }}</td>
+                    <td>{{ student.2 }}</td>
+                    <td>{{ student.3 }}</td>
+                    <td class="action-cell">
+                        <div class="action-buttons">
+                            <a href="{% url 'user_detail' student.0 %}" class="action-btn view-btn"
+                               title="Xem chi tiết">
+                                <i class='bx bx-list-ul'></i>
+                            </a>
+                            {% if role_id == 3 %}
+                                <button class="action-btn delete-row-btn"
+                                        onclick="confirmDeleteStudent({{ student.0 }})"
+                                        title="Xóa">
+                                    <i class='bx bxs-x-circle'></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Phân trang -->
+        {% if page_obj.paginator.num_pages > 1 %}
+            <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="page-btn">Trước</a>
+                {% else %}
+                    <a href="#" class="page-btn disabled">Trước</a>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num == page_obj.number %}
+                        <a class="page-btn active">{{ num }}</a>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}" class="page-btn">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="page-btn">Tiếp</a>
+                {% else %}
+                    <a href="#" class="page-btn disabled">Tiếp</a>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if role_id == 3 %}
+            <button id="add-student-btn" class="add-student-class-btn">Thêm học sinh</button>
+        {% endif %}
+    </div>
+    {% if role_id == 3 %}
+        <div id="add-student-popup" class="popup hidden">
+            <div class="popup-content">
+                <span id="close-popup" class="close-btn">&times;</span>
+                <h3>Thêm học sinh vào lớp</h3>
+                <label for="student-id">Nhập ID học sinh:</label>
+                <input type="text" id="student-id" placeholder="ID học sinh">
+                <button id="search-student-btn" class="add-student-class-btn">Tìm kiếm</button>
+                <div id="student-info" class="student-info hidden">
+                    <p><strong>Username:</strong> <span id="student-username"></span></p>
+                    <p><strong>Họ tên:</strong> <span id="student-fullname"></span></p>
+                    <p><strong>Email:</strong> <span id="student-email"></span></p>
+                    <button id="confirm-add-btn" class="add-student-class-btn">Thêm vào lớp</button>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const addStudentBtn = document.getElementById("add-student-btn");
+            const popup = document.getElementById("add-student-popup");
+            const closePopupBtn = document.getElementById("close-popup");
+            const searchStudentBtn = document.getElementById("search-student-btn");
+            const studentIdInput = document.getElementById("student-id");
+            const studentInfo = document.getElementById("student-info");
+            const confirmAddBtn = document.getElementById("confirm-add-btn");
+
+            // Open popup
+            addStudentBtn.addEventListener("click", () => {
+                popup.classList.remove("hidden");
+            });
+
+            // Close popup
+            closePopupBtn.addEventListener("click", () => {
+                popup.classList.add("hidden");
+                studentInfo.classList.add("hidden");
+                studentIdInput.value = "";
+            });
+
+            // Search student by ID
+            searchStudentBtn.addEventListener("click", () => {
+                    const studentId = studentIdInput.value.trim();
+                    if (studentId) {
+                        if (!/^\d+$/.test(studentId)) {
+                            // Kiểm tra nếu studentId không phải là số
+                            alert("Vui lòng nhập ID hợp lệ!");
+                        } else {
+                            // Fetch student information from the server
+                            fetch(`/get_user_info/${studentId}/`)
+                                .then((response) => {
+                                    if (response.ok) return response.json();
+                                    throw new Error("Không tìm thấy ID học sinh");
+                                })
+                                .then((data) => {
+                                    document.getElementById("student-username").textContent = data.user_info.username;
+                                    document.getElementById("student-fullname").textContent = `${data.user_info.first_name} ${data.user_info.last_name}`;
+                                    document.getElementById("student-email").textContent = data.user_info.email;
+                                    studentInfo.classList.remove("hidden");
+                                })
+                                .catch((error) => {
+                                    alert(error.message);
+                                    studentInfo.classList.add("hidden");
+                                });
+                        }
+                    } else {
+                        alert("Vui lòng nhập ID học sinh");
+                    }
+                }
+            )
+            ;
+
+            // Confirm add student
+            confirmAddBtn.addEventListener("click", () => {
+                const studentId = studentIdInput.value.trim();
+                if (studentId) {
+                    // Send a request to add student to the class
+                    fetch(`/class_detail/{{ class_info.id }}/add_student/`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({student_id: studentId}),
+                    })
+                        .then((response) => {
+                            if (response.ok) {
+                                return response.json(); // Trích xuất dữ liệu JSON từ response
+                            } else {
+                                throw new Error("Có lỗi xảy ra khi thêm học sinh vào lớp");
+                            }
+                        })
+                        .then((data) => {
+                            if (data.success) {
+                                alert("Học sinh đã được thêm vào lớp!");
+                                location.reload(); // Reload page
+                            } else {
+                                alert(data.message || "Không thể thêm học sinh vào lớp");
+                            }
+                        })
+                        .catch((error) => {
+                            console.error(error);
+                            alert(error.message);
+                        });
+                }
+            });
+        });
+
+        function confirmDeleteStudent(studentId) {
+            if (confirm('Bạn có chắc chắn muốn xóa học sinh này ra khỏi lớp học?')) {
+                fetch(`/class_detail/{{ class_info.id }}/delete_student/`, {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    method: 'POST',
+                    body: JSON.stringify({student_id: studentId})
+
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Có lỗi xảy ra khi xóa người dùng.');
+                    });
+            }
+        }
+
+    </script>
+
+{% endblock %}

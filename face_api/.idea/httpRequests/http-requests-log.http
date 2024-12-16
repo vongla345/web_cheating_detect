@@ -1,0 +1,45 @@
+GET http://0.0.0.0:8080/compare-faces
+Accept: application/json
+User-Agent: IntelliJ HTTP Client/PyCharm 2024.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+
+<> 2024-12-09T111338.405.json
+
+###
+
+GET http://127.0.0.1:8080/compare-faces
+Accept: application/json
+User-Agent: IntelliJ HTTP Client/PyCharm 2024.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+
+<> 2024-12-09T111303.405.json
+
+###
+
+GET http://127.0.0.1:8080
+Accept: application/json
+User-Agent: IntelliJ HTTP Client/PyCharm 2024.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+
+<> 2024-12-09T111221.200.json
+
+###
+
+GET http://127.0.0.1:8000/compare-faces
+Accept: application/json
+User-Agent: IntelliJ HTTP Client/PyCharm 2024.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+
+<> 2024-12-09T110907.405.json
+
+###
+
+GET http://127.0.0.1:8000
+Accept: application/json
+User-Agent: IntelliJ HTTP Client/PyCharm 2024.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+
+<> 2024-12-09T110833.404.json
+
+###
+

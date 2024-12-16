@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="login-page-body">
+<div class='login-page'>
+    <div class="login-container">
+        <div class="logo">
+            <img src="{% static 'assets/user_placeholder.png' %}" alt="Logo">
+        </div>
+
+        <h2>Đăng nhập</h2>
+
+        <form class="login-form" method="POST">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="input-group">
+                <label> {{ form.username }} </label>
+                <label class="error-text">{{ form.username.errors }}</label>
+            </div>
+            <div class="input-group">
+                <label>{{ form.password }}</label>
+                <label class="error-text">{{ form.password.errors }}</label>
+            </div>
+            <a href="#" class="forgot-password">Quên mật khẩu?</a>
+
+            <div class="button-group">
+                <button type="submit" class="btn-primary">Đăng nhập</button>
+                <p>Bạn chưa có tài khoản? <a href={% url 'register' %}>Tạo một tài khoản mới</a></p>
+            </div>
+        </form>
+
+    </div>
+</div>
+</body>
+</html>

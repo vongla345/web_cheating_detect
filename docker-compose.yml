@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  django:
+    build:
+      context: .
+    container_name: web_cheating_detect
+    working_dir: /app/web_cheating_detect
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      - DJANGO_DEBUG=True
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./web_cheating_detect:/app/web_cheating_detect
+
+  fastapi:
+    build:
+      context: .
+    container_name: face_api
+    working_dir: /app/face_api
+    command: uvicorn main:app --host 0.0.0.0 --port 8081
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./face_api:/app/face_api

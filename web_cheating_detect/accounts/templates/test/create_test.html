@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block title %}Tạo bài kiểm tra{% endblock %}
+
+{% block content %}
+    <div class="create-test-container">
+        <h1 class="page-title">Tạo bài kiểm tra mới</h1>
+
+        <form method="post" action="{% url 'create_test' %}" class="create-test-form"
+              onsubmit="return validateSubmit();">
+            {% csrf_token %}
+            <h3 class="section-title">Chi tiết bài kiểm tra</h3>
+            <div class="form-group">
+                <label for="title">Tên bài kiểm tra</label>
+                <input class="info" type="text" id="title" name="title" required>
+            </div>
+            <div class="form-group">
+                <label for="description">Mô tả bài kiểm tra (nếu có)</label>
+                <input class="info" type="text" id="description" name="description">
+            </div>
+            <div class="form-group">
+                <label for="amount_of_time">Thời gian làm bài (phút)</label>
+                <input class="info" type="text" id="amount_of_time" name="amount_of_time" required>
+            </div>
+            <div class="form-group">
+                <label for="attempt_limit">Số lần làm bài</label>
+                <input class="info" type="text" id="attempt_limit" name="attempt_limit" placeholder="Không giới hạn">
+            </div>
+
+            <h3 class="section-title">Chọn lớp áp dụng</h3>
+            <div class="classes-group">
+                {% for class in classes %}
+                    <div class="class-item">
+                        <input type="checkbox" id="class-{{ class.0 }}" name="class_ids" value="{{ class.0 }}">
+                        <label for="class-{{ class.0 }}">{{ class.1 }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+            <form method="post" enctype="multipart/form-data" action="{% url 'upload_test' %}">
+                {% csrf_token %}
+                <h3 class="section-title">Upload câu hỏi từ file Excel</h3>
+                <div class="form-group excel-upload-wrapper">
+                    <label for="excel-file" class="custom-upload-btn">
+                        <i class='bx bx-upload'></i> Chọn file Excel
+                    </label>
+                    <input type="file" id="excel-file" name="excel-file" accept=".xlsx, .xls" style="display: none;"
+                           onchange="handleFileUpload(event)">
+                    <span id="selected-file-name" class="file-name-display">Chưa chọn file nào</span>
+                </div>
+            </form>
+
+            <h3 class="section-title">Câu hỏi</h3>
+            <div id="questions-container">
+                {{ question_formset.management_form }}
+                {% for form in question_formset %}
+                    <div class="question" id="question-{{ forloop.counter }}">
+                        {{ form.as_p }}
+                    </div>
+                {% endfor %}
+            </div>
+            <div id="question-grid">
+                {% for question in questions %}
+                    <button type="button" class="new-question-btn" id="question-btn-{{ forloop.counter }}"
+                            onclick="showQuestion({{ forloop.counter }})">
+                        {{ forloop.counter }}
+                    </button>
+                {% endfor %}
+                <button type="button" class="question-btn add-btn" onclick="addQuestion()">+</button>
+            </div>
+            <button class="create-btn" type="submit">Tạo bài kiểm tra mới</button>
+        </form>
+    </div>
+
+    <script>
+        let questionIndex = {{ question_formset.total_form_count|default:0 }};
+
+        function showQuestion(index) {
+            document.querySelectorAll('.question').forEach(q => q.style.display = 'none');
+            document.getElementById(`question-${index}`).style.display = 'block';
+
+            document.querySelectorAll('.new-question-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`question-btn-${index}`).classList.add('selected');
+        }
+
+        function addQuestion() {
+            const container = document.getElementById("questions-container");
+            const grid = document.getElementById("question-grid");
+
+            const questionHTML = `
+        <div class="question" id="question-${questionIndex}">
+            <h4>Câu hỏi ${questionIndex + 1}</h4>
+            <label for="id_questions-${questionIndex}-question_text"> Nội dung câu hỏi</label>
+            <input type="text" name="questions-${questionIndex}-question_text" id="id_questions-${questionIndex}-question_text" required><br>
+            <div class="choices">
+                <h5>Lựa chọn</h5>
+                ${[...Array(4)].map((_, i) => `
+                    <div class="choice">
+                        <label for="id_choices-${questionIndex}-${i}-choice_text">Lựa chọn ${i + 1}:</label>
+                        <input type="text" name="choices-${questionIndex}-${i}-choice_text" id="id_choices-${questionIndex}-${i}-choice_text" required>
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="choices-${questionIndex}-${i}-is_correct"
+                                id="id_choices-${questionIndex}-${i}-is_correct"
+                                onclick="handleCheckboxClick(${questionIndex}, ${i})">
+                            Đúng
+                        </label>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="question-actions">
+                <button type="button" class="btn-delete" onclick="deleteQuestion(${questionIndex})">Xoá câu hỏi</button>
+                <button type="button" class="btn-clear" onclick="clearContent(${questionIndex})">Xoá nội dung</button>
+            </div>
+        </div>
+    `;
+
+            const questionDiv = document.createElement("div");
+            questionDiv.innerHTML = questionHTML;
+            container.appendChild(questionDiv);
+
+            // Add button to the grid
+            const buttonHTML = `<button type="button" class="new-question-btn" id="question-btn-${questionIndex}" onclick="showQuestion(${questionIndex})">${questionIndex + 1}</button>`;
+            const btnDiv = document.createElement("div");
+            btnDiv.innerHTML = buttonHTML;
+            grid.insertBefore(btnDiv.firstChild, grid.lastElementChild);
+
+            // Automatically show the new question
+            showQuestion(questionIndex);
+
+            questionIndex += 1;
+            document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
+        }
+
+        function handleCheckboxClick(questionIndex, choiceIndex) {
+            const checkboxes = document.querySelectorAll(`input[name^="choices-${questionIndex}-"][type="checkbox"]`);
+
+            // Uncheck all checkboxes and remove "checked" class
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.classList.remove('checked');
+            });
+
+            // Check only the current checkbox and add the "checked" class
+            const selectedCheckbox = document.getElementById(`id_choices-${questionIndex}-${choiceIndex}-is_correct`);
+            selectedCheckbox.checked = true;
+            selectedCheckbox.classList.add('checked');
+        }
+
+        function handleFileUpload(event) {
+            const fileInput = event.target;
+            const formData = new FormData();
+            formData.append('excel_file', fileInput.files[0]);
+
+            fetch("{% url 'upload_test' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Duyệt qua từng câu hỏi và thêm vào giao diện
+                        data.questions.forEach(questionData => {
+                            addQuestionFromExcel(questionData);
+                        });
+                    } else {
+                        alert(`Error: ${data.error}`);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error uploading file:", error);
+                    alert("An error occurred while uploading the file.");
+                });
+        }
+
+
+        function addQuestionFromExcel(questionData) {
+            addQuestion(); // Thêm một câu hỏi mới trước
+
+            const currentQuestion = document.getElementById(`question-${questionIndex - 1}`);
+            currentQuestion.querySelector(`#id_questions-${questionIndex - 1}-question_text`).value = questionData.question_text;
+
+            questionData.choices.forEach((choice, i) => {
+                const choiceText = currentQuestion.querySelector(`#id_choices-${questionIndex - 1}-${i}-choice_text`);
+                const isCorrect = currentQuestion.querySelector(`#id_choices-${questionIndex - 1}-${i}-is_correct`);
+
+                choiceText.value = choice.choice_text;
+                isCorrect.checked = choice.is_correct;
+            });
+
+            showQuestion(questionIndex - 1);
+        }
+
+
+        function deleteQuestion(index) {
+            // Xóa câu hỏi khỏi form
+            console.log(index);
+            const questionDiv = document.getElementById(`question-${index}`);
+            if (questionDiv) {
+                questionDiv.remove();
+            }
+
+            // Xóa nút khỏi grid
+            const buttonDiv = document.getElementById(`question-btn-${index}`);
+            if (buttonDiv) {
+                buttonDiv.remove();
+            }
+
+            // Hiển thị câu hỏi khác sau khi xóa
+            const totalQuestions = document.querySelectorAll('.question').length;
+            updateQuestionIndexes();
+            if (totalQuestions > 0) {
+                if (index < totalQuestions) {
+                    // Hiển thị câu hỏi liền kề
+                    showQuestion(index);
+                } else {
+                    // Hiển thị câu hỏi trước đó nếu không có câu liền kề
+                    showQuestion(index - 1);
+                }
+            }
+        }
+
+
+        function clearContent(index) {
+            const questionDiv = document.getElementById(`question-${index}`);
+            if (questionDiv) {
+                // Xóa nội dung tất cả input text
+                const inputs = questionDiv.querySelectorAll('input[type="text"]');
+                inputs.forEach(input => input.value = '');
+
+                // Bỏ chọn tất cả checkbox
+                const checkboxes = questionDiv.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(checkbox => checkbox.checked = false);
+            }
+        }
+
+        function updateQuestionIndexes() {
+            const questions = document.querySelectorAll('.question');
+            const buttons = document.querySelectorAll('.new-question-btn');
+
+            questions.forEach((question, i) => {
+                // Cập nhật ID và tiêu đề câu hỏi
+                question.id = `question-${i}`;
+                const questionTitle = question.querySelector('h4');
+                if (questionTitle) {
+                    questionTitle.textContent = `Question ${i + 1}`;
+                }
+
+                // Cập nhật ID của các trường input và label trong form
+                const inputs = question.querySelectorAll('input, label');
+                inputs.forEach(input => {
+                    const oldId = input.id;
+                    const oldName = input.name;
+
+                    if (oldId) {
+                        input.id = oldId.replace(/questions-\d+-/, `questions-${i}-`);
+                    }
+                    if (oldName) {
+                        input.name = oldName.replace(/questions-\d+-/, `questions-${i}-`);
+                    }
+                });
+
+                // Cập nhật nút delete và clear content
+                const deleteButton = question.querySelector('.btn-delete');
+                const clearButton = question.querySelector('.btn-clear');
+                if (deleteButton) {
+                    deleteButton.setAttribute('onclick', `deleteQuestion(${i})`);
+                }
+                if (clearButton) {
+                    clearButton.setAttribute('onclick', `clearContent(${i})`);
+                }
+            });
+
+            buttons.forEach((button, i) => {
+                // Cập nhật ID và nội dung nút
+                button.id = `question-btn-${i}`;
+                button.setAttribute('onclick', `showQuestion(${i})`);
+                button.textContent = i + 1;
+
+                // Cập nhật ID của container chứa nút
+                const btnContainer = button.closest('.question-btn-container');
+                if (btnContainer) {
+                    btnContainer.id = `question-btn-container-${i}`;
+                }
+            });
+
+            // Cập nhật tổng số câu hỏi
+            questionIndex = questions.length;
+            document.getElementById("id_questions-TOTAL_FORMS").value = questionIndex;
+        }
+
+        function validateSubmit() {
+            // Lấy tất cả các câu hỏi
+            const questions = document.querySelectorAll('.question');
+
+            // Duyệt qua từng câu hỏi
+            for (let question of questions) {
+                const checkboxes = question.querySelectorAll('input[type="checkbox"][name$="-is_correct"]'); // Các checkbox của câu hỏi
+                const checkedCheckboxes = Array.from(checkboxes).filter(checkbox => checkbox.checked); // Checkbox được tích
+
+                // Nếu không có hoặc có hơn 1 đáp án được chọn
+                if (checkedCheckboxes.length !== 1) {
+                    alert("Đảm bảo mỗi câu hỏi có đúng 1 đáp án đúng.");
+                    return false; // Dừng submit
+                }
+            }
+
+            // Nếu tất cả câu hỏi hợp lệ, tiếp tục submit
+            return true;
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const excelInput = document.getElementById("excel-file");
+            const selectedFileName = document.getElementById("selected-file-name");
+
+            // Hiển thị tên file đã chọn
+            excelInput.addEventListener("change", () => {
+                const file = excelInput.files[0];
+                selectedFileName.textContent = file ? file.name : "Chưa chọn file nào";
+            });
+        });
+
+    </script>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+
+{% block title %} Tạo lớp mới {% endblock %}
+
+{% block content %}
+    <h1 class="create-class-title">Tạo Lớp Mới</h1>
+
+    <!-- Form tạo lớp mới -->
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-group label-name">
+            <label for="class_name">Tên lớp</label>
+            <input type="text" id="class_name" name="class_name" required>
+        </div>
+
+        <div class="form-group label-name">
+            <label for="description">Ghi chú (nếu có)</label>
+            <input type="text" id="description" name="description">
+        </div>
+
+        <div class="form-group label-select">
+            <label for="school_year">Năm học</label>
+            <select id="school_year" name="school_year" required>
+                {% for school_year in school_years %}
+                    <option value="{{ school_year.id }}">{{ school_year.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group label-select">
+            <label for="teacher">Giáo viên chủ nhiệm</label>
+            <select id="teacher" name="teacher" required>
+                {% for teacher in teachers %}
+                    <option value="{{ teacher.id }}">{{ teacher.id }}
+                        - {{ teacher.first_name }} {{ teacher.last_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group custom-file-upload">
+            <button type="button" id="add-student-btn" class="add-student-class-btn">Thêm học sinh</button>
+
+            <label for="excel-file" class="custom-upload-btn">
+                <i class='bx bx-upload'></i> Chọn file Excel
+            </label>
+            <input type="file" id="excel-file" name="excel-file" accept=".xlsx, .xls">
+            <span id="selected-file-name">Chưa chọn file nào</span>
+        </div>
+        <div id="upload-error-message" class="error-message"></div>
+
+
+        <div id="add-student-popup" class="popup hidden">
+            <div class="popup-content">
+                <span id="close-popup" class="close-btn">&times;</span>
+                <h3>Thêm học sinh vào lớp</h3>
+                <label for="student-id">Nhập ID học sinh:</label>
+                <input type="text" id="student-id" placeholder="ID học sinh">
+                <button type="button" id="search-student-btn" class="add-student-class-btn">Tìm kiếm</button>
+                <div id="student-info" class="student-info hidden">
+                    <p><strong>Username:</strong> <span id="student-username"></span></p>
+                    <p><strong>Họ tên:</strong> <span id="student-fullname"></span></p>
+                    <p><strong>Email:</strong> <span id="student-email"></span></p>
+                    <button type="button" id="confirm-add-btn" class="add-student-class-btn">Thêm vào lớp</button>
+                </div>
+            </div>
+        </div>
+
+
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tài khoản</th>
+                <th>Họ và tên</th>
+                <th>Email</th>
+                <th>Số điện thoại</th>
+                <th>Giới tính</th>
+                <th>Ngày sinh</th>
+                <th class="action-header">Hành động</th>
+            </tr>
+            </thead>
+            <tbody id="student-table-body">
+            <!-- Các dòng học sinh sẽ được thêm vào đây bằng JavaScript -->
+            </tbody>
+        </table>
+
+        <button type="submit" class="add-student-class-btn submit-class-btn">Tạo lớp mới</button>
+    </form>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const addStudentBtn = document.getElementById("add-student-btn");
+            const popup = document.getElementById("add-student-popup");
+            const closePopupBtn = document.getElementById("close-popup");
+            const searchStudentBtn = document.getElementById("search-student-btn");
+            const studentIdInput = document.getElementById("student-id");
+            const studentInfo = document.getElementById("student-info");
+            const confirmAddBtn = document.getElementById("confirm-add-btn");
+            const studentTableBody = document.getElementById("student-table-body");
+
+            // Open popup
+            addStudentBtn.addEventListener("click", () => {
+                popup.classList.remove("hidden");
+            });
+
+            // Close popup
+            closePopupBtn.addEventListener("click", () => {
+                popup.classList.add("hidden");
+                studentInfo.classList.add("hidden");
+                studentIdInput.value = "";
+            });
+
+            // Search student by ID
+            searchStudentBtn.addEventListener("click", () => {
+                const studentId = studentIdInput.value.trim();
+                if (studentId) {
+                    if (!/^\d+$/.test(studentId)) {
+                        alert("Vui lòng nhập ID hợp lệ!");
+                    } else {
+                        fetch(`/get_user_info/${studentId}/`)
+                            .then((response) => {
+                                if (response.ok) return response.json();
+                                throw new Error("Không tìm thấy ID học sinh");
+                            })
+                            .then((data) => {
+                                    if (data.success) {
+                                        document.getElementById("student-username").textContent = data.user_info.username;
+                                        document.getElementById("student-fullname").textContent = `${data.user_info.first_name} ${data.user_info.last_name}`;
+                                        document.getElementById("student-email").textContent = data.user_info.email;
+                                        confirmAddBtn.dataset.studentInfo = JSON.stringify(data.user_info);
+                                        studentInfo.classList.remove("hidden");
+                                    } else {
+                                        alert(data.error || "Không thể thêm học sinh vào lớp");
+                                    }
+                                }
+                            )
+                            .catch((error) => {
+                                alert(error.message);
+                                studentInfo.classList.add("hidden");
+                            });
+                    }
+                } else {
+                    alert("Vui lòng nhập ID học sinh");
+                }
+            });
+
+            // Confirm add student
+            confirmAddBtn.addEventListener("click", () => {
+                const studentInfo = JSON.parse(confirmAddBtn.dataset.studentInfo);
+                if (studentInfo) {
+                    const studentRow = document.createElement("tr");
+                    studentRow.innerHTML = `
+                <td>${studentInfo.id}</td>
+                <td>${studentInfo.username}</td>
+                <td>${studentInfo.first_name} ${studentInfo.last_name}</td>
+                <td>${studentInfo.email}</td>
+                <td>${studentInfo.phone || "N/A"}</td>
+                <td>${studentInfo.gender ? "Nam" : "Nữ"}</td>
+                <td>${studentInfo.date_of_birth || "N/A"}</td>
+                <td class="action-cell">
+                    <button class="action-btn delete-row-btn" onclick="removeStudentRow(this)">
+                        <i class='bx bxs-x-circle'></i>
+                    </button>
+                </td>
+                <input type="hidden" name="student_ids[]" value="${studentInfo.id}">
+            `;
+                    studentTableBody.appendChild(studentRow);
+                    popup.classList.add("hidden");
+                }
+            });
+        })
+        ;
+
+        // Remove student row from table
+        function removeStudentRow(button) {
+            const row = button.closest("tr");
+            row.remove();
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const excelInput = document.getElementById("excel-file");
+            const selectedFileName = document.getElementById("selected-file-name");
+
+            // Hiển thị tên file đã chọn
+            excelInput.addEventListener("change", () => {
+                const file = excelInput.files[0];
+                selectedFileName.textContent = file ? file.name : "Chưa chọn file nào";
+            });
+        });
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const excelInput = document.getElementById("excel-file");
+            const studentTableBody = document.getElementById("student-table-body");
+            const errorMessage = document.getElementById("upload-error-message");
+
+            // Gửi file Excel
+            excelInput.addEventListener("change", () => {
+                const file = excelInput.files[0];
+                if (!file) {
+                    errorMessage.textContent = "Vui lòng chọn file Excel.";
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("excel-file", file);
+
+                fetch("{% url 'upload_student_file' %}", {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}",
+                    },
+                })
+                    .then((response) => {
+                        if (!response.ok) throw new Error("Lỗi khi tải lên file Excel.");
+                        return response.json();
+                    })
+                    .then((data) => {
+                        if (data.errors && data.errors.length > 0) {
+                            errorMessage.innerHTML =
+                                "Không thể tìm thấy các học sinh với ID: " +
+                                data.errors.join(", ");
+                        } else {
+                            errorMessage.textContent = "";
+                        }
+
+                        // Thêm các học sinh vào bảng tạm
+                        data.students.forEach((student) => {
+                            const existingRows = Array.from(studentTableBody.querySelectorAll("tr"));
+                            const studentExists = existingRows.some(
+                                (row) => row.cells[0].textContent === String(student.id)
+                            );
+
+                            if (!studentExists) {
+                                const studentRow = document.createElement("tr");
+                                studentRow.innerHTML = `
+                                <td>${student.id}</td>
+                                <td>${student.username}</td>
+                                <td>${student.first_name} ${student.last_name}</td>
+                                <td>${student.email}</td>
+                                <td>${student.phone || "N/A"}</td>
+                                <td>${student.gender ? "Nam" : "Nữ"}</td>
+                                <td>${student.date_of_birth || "N/A"}</td>
+                                <td class="action-cell">
+                                    <button class="action-btn delete-row-btn" onclick="removeStudentRow(this)">
+                                        <i class='bx bxs-x-circle'></i>
+                                    </button>
+                                </td>
+                                <input type="hidden" name="student_ids[]" value="${student.id}">
+
+                            `;
+                                studentTableBody.appendChild(studentRow);
+                            }
+                        });
+                    })
+                    .catch((error) => {
+                        errorMessage.textContent = error.message;
+                    });
+            });
+        });
+    </script>
+
+{% endblock %}

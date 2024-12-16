@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Student Details{% endblock %}
+
+{% block content %}
+    <script>
+        async function validateProfilePicture() {
+            const loadingIcon = document.getElementById("loading-icon");
+            const fileInput = document.getElementById("profile_picture");
+            const profileImage = document.getElementById("profile-img");
+            const file = fileInput.files[0];
+
+            // Kiểm tra tệp hợp lệ trước khi gửi API
+            if (!file || !file.type.startsWith("image/")) {
+                alert("Please upload a valid image file.");
+                fileInput.value = null; // Reset input nếu không phải là ảnh
+                return;
+            }
+
+            // Hiển thị biểu tượng loading
+            loadingIcon.style.display = "block";
+
+            try {
+                const serverBaseUrl = `${window.location.origin.replace(/:\d+$/, '')}:8081`;
+
+                const formData = new FormData();
+                formData.append("image", file);
+
+                // Gửi yêu cầu API
+                const response = await fetch(`${serverBaseUrl}/check-face/`, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const result = await response.json();
+                console.log(result);
+
+                // Hiển thị thông báo sau khi nhận phản hồi API
+                if (response.ok && result.status === "success") {
+                    alert(result.message); // Thông báo thành công
+                } else {
+                    alert(result.message || "Không tìm thấy khuôn mặt hợp lệ. Vui lòng chọn tấm hình khác");
+                    fileInput.value = null; // Reset file input nếu không hợp lệ
+                    return;
+                }
+
+                // Đọc ảnh mới và hiển thị khi người dùng xác nhận OK
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    profileImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while validating the image.");
+                fileInput.value = null; // Reset file input nếu xảy ra lỗi
+            } finally {
+                // Ẩn biểu tượng loading sau khi người dùng ấn OK
+                loadingIcon.style.display = "none";
+            }
+        }
+
+
+    </script>
+    <div class="profile-container">
+        <div class="student-details-header">
+            <h2>Thông tin chung</h2>
+        </div>
+        <form method="post" action="{% url 'profile' %}" class="profile-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="profile-content">
+                <div class="profile-image-container">
+                    {% if profile_picture %}
+                        <img src="{{ profile_picture.url }}" alt="Student Photo" class="profile-img-preview"
+                             id="profile-img">
+                    {% else %}
+                        <img src="{% static 'assets/user_placeholder.png' %}" alt="Default Profile Picture"
+                             class="profile-img-preview" id="profile-img">
+                    {% endif %}
+                    <label for="profile_picture" class="custom-upload-btn">
+                        <i class='bx bx-upload'></i> Chọn ảnh đại diện
+                    </label>
+                    <input type="file" id="profile_picture" name="profile_picture" accept="image/*"
+                           onchange="validateProfilePicture()" style="display: none;">
+
+                    <div id="loading-icon" class="loading-icon" style="display: none;">
+                        <img src="{% static 'assets/loading.gif' %}" alt="Loading...">
+                    </div>
+                </div>
+
+
+                <div class="about-section">
+                    <h3>{{ first_name }} {{ last_name }}</h3>
+
+                    <div class="info-grid">
+                        <div class="info-row">
+                            <div class="info-label">Tài khoản</div>
+                            <div class="info-value">{{ username }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Họ tên</div>
+                            <div class="info-value">{{ first_name }} {{ last_name }}</div>
+                        </div>
+
+                        <div class="info-row">
+                            <label class="info-label" for="gender">Giới tính</label>
+                            <select id="gender" name="gender">
+                                <option value="1" {% if gender == 1 %}selected{% endif %}>Nam</option>
+                                <option value="0" {% if gender == 0 %}selected{% endif %}>Nữ</option>
+                                {% if gender is None %}
+                                    <option value=None selected></option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="info-row">
+                            <label class="info-label" for="birthdate">Ngày sinh</label>
+                            <input type="date" id="birthdate" name="birthdate" value="{{ date_of_birth|date:'Y-m-d' }}">
+                        </div>
+                        <div class="info-row">
+                            <label class="info-label" for="email">Email</label>
+                            <input type="email" id="email" {% if email %} value="{{ email }}" {% else %}
+                                   placeholder="Chưa cập nhật" value="" {% endif %}>
+                        </div>
+                        <div class="info-row">
+                            <label class="info-label" for="phone">Số điện thoại</label>
+                            <input type="text" id="phone" name="phone"
+                                    {% if phone %} value="{{ phone }}" {% else %} placeholder="Chưa cập nhật"
+                                   value="" {% endif %}>
+                        </div>
+                        <div class="info-row">
+                            <label class="info-label" for="school_info">Thông tin trường</label>
+                            <input type="text" id="school_info" name="school_info"
+                                    {% if school_name %} value="{{ school_name }}" {% else %}
+                                   placeholder="Chưa cập nhật"
+                                   value="" {% endif %}>
+                        </div>
+                    </div>
+                    {% if role_id_user == 1 %}
+                        <div class="class-list">
+                            <h3>Danh sách lớp học</h3>
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>Tên lớp</th>
+                                    <th>Giáo viên</th>
+                                    <th>Năm học</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for class in user_class %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'class_detail' class.0 %}">{{ class.1 }}</a>
+                                        </td>
+                                        <td>{{ class.3 }} {{ class.4 }}</td>
+                                        <td>{{ class.2 }}</td>
+                                    </tr>
+                                {% endfor %}
+                                {% if user_class|length == 0 %}
+                                    <tr>
+                                        <td colspan="3">Chưa có lớp học nào</td>
+                                    </tr>
+                                {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% elif role_id_user == 2 %}
+                        <div class="class-list">
+                            <h3>Danh sách lớp học</h3>
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>Tên lớp</th>
+                                    <th>Năm học</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for class in user_class %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'class_detail' class.0 %}">{{ class.1 }}</a>
+                                        </td>
+                                        <td>{{ class.2 }}</td>
+                                    </tr>
+                                {% endfor %}
+                                {% if user_class|length == 0 %}
+                                    <tr>
+                                        <td colspan="3">Chưa có lớp học nào</td>
+                                    </tr>
+                                {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                    <button type="submit" class="update-profile-btn">
+                        Cập nhật
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+{% endblock %}

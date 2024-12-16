@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Kết quả bài kiểm tra{% endblock %}
+{% block content %}
+    <div class="result-container">
+        <h2>Bài làm của bạn đã được gửi đi</h2>
+        <p class="score">Điểm của bạn: <span>{{ student_test.5 }}</span></p>
+        <p class="test-name">{{ student_test.10 }}</p>
+        <div class="result-details">
+            <div class="row">
+                <img src="{% static "assets/user.png" %}" alt="Thí sinh" class="icon">
+                <span class="label">Thí sinh</span>
+                <span class="value">{{ student_test.6 }}</span>
+            </div>
+            <div class="row">
+                <img src="{% static "assets/clock.png" %}" alt="Thời gian làm bài" class="icon">
+                <span class="label">Thời gian làm bài</span>
+                <span class="value">{{ student_test.3 }}</span>
+            </div>
+            <div class="row">
+                <img src="{% static "assets/tasks.png" %}" alt="Thời gian nộp bài" class="icon">
+                <span class="label">Thời gian nộp bài</span>
+                <span class="value">{{ student_test.4 }}</span>
+            </div>
+            <div class="row">
+                <img src="{% static "assets/check.png" %}" alt="Số câu trắc nghiệm đúng" class="icon">
+                <span class="label">Số câu trắc nghiệm đúng</span>
+                <span class="value correct">{{ student_test.7 }}</span>
+            </div>
+            <div class="row">
+                <img src="{% static "assets/remove.png" %}" alt="Số câu trắc nghiệm sai" class="icon">
+                <span class="label">Số câu trắc nghiệm sai</span>
+                <span class="value incorrect">{{ student_test.8 }}</span>
+            </div>
+            <div class="row">
+                <img src="{% static "assets/danger.png" %}" alt="Tổng số câu hỏi trong đề" class="icon">
+                <span class="label">Tổng số câu hỏi trong đề</span>
+                <span class="value">{{ student_test.9 }}</span>
+            </div>
+        </div>
+    <!--
+        <div class="actions">
+            <button class="ability-statistic">Xem thống kê năng lực</button>
+            <button class="answer">Xem đáp án</button>
+        </div>
+       -->
+    <button class="answer">
+        Quay trở về trang trước
+    </button>
+    </div>
+{% endblock %}

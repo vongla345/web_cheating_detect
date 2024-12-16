@@ -1,0 +1,6 @@
+dj_database_url==2.3.0
+Django==5.1.2
+django_heroku==0.3.1
+pandas==2.0.3
+pyarrow==11.0.0
+django-debug-toolbar==4.4.6
