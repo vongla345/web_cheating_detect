@@ -107,9 +107,9 @@
                 const formData = new FormData();
                 formData.append('reference_image', referenceBlob, "reference.jpg");
                 formData.append('webcam_image', webcamBlob, "webcam.jpg");
-                console.log(`API URL: ${serverBaseUrl}/authenticate/`);
+                console.log(`API URL: ${serverBaseUrl}/authenticate`);
 
-                const response = await fetch(`${serverBaseUrl}/authenticate/`, {
+                const response = await fetch(`${serverBaseUrl}/authenticate`, {
                     method: 'POST',
                     body: formData
                 });
@@ -164,7 +164,7 @@
                 */
                 console.log(result)
                 // Nếu pass xác thực, dừng kiểm tra
-                if (result && result.status === "approved") {
+                if (result.success && result.data.status === "approved") {
                     alert("Khuôn mặt hợp lệ! Xác thực thành công.");
                     isAuthenticated = true;
                     break;
@@ -199,7 +199,7 @@
                 captureWebcamImage().then(webcamImageBlob => {
                     sendFaceToServer(webcamImageBlob).then(result => {
                         console.log(result);
-                        if (!result || result.status !== "approved") {
+                        if (!result || (result.success && result.data.status === "approved")) {
                             faceVerificationFails += 1; // Tăng số lần xác thực không thành công
                             console.log(result)
                             console.warn("Face verification failed", faceVerificationFails);
