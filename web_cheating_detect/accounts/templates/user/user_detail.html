@@ -194,9 +194,11 @@
                             </table>
                         </div>
                     {% endif %}
-                    <button type="submit" class="update-profile-btn">
-                        Cập nhật
-                    </button>
+                    {% if role_id_user == 3 %}
+                        <button type="submit" class="update-profile-btn">
+                            Cập nhật
+                        </button>
+                    {% endif %}
                 </div>
             </div>
         </form>
