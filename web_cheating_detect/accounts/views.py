@@ -660,6 +660,7 @@ def test_detail(request, test_id):
             student_test.append(total_question - score)
             student_test.append(total_question)
             student_test.append(test_name)
+            student_test.append(test_id)
 
             conn.commit()
             conn.close()

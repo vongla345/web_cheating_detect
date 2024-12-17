@@ -3,11 +3,11 @@
 {% block title %}Phòng chờ và Bài kiểm tra{% endblock %}
 
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
     <script type="text/javascript">
-        const URL = "https://teachablemachine.withgoogle.com/models/N1j37CgN9/";
-        let model, webcam, maxPredictions, labelContainer;
+        const URL = "https://teachablemachine.withgoogle.com/models/-RTBgw5Xs/";
+        let model, webcam, ctx, maxPredictions, labelContainer;
         let isPredicting = false;  // Biến kiểm soát trạng thái dự đoán
         let isCameraRunning = false;
         let isAuthenticated = false;
@@ -28,11 +28,11 @@
                 const modelURL = URL + "model.json";
                 const metadataURL = URL + "metadata.json";
 
-                model = await tmImage.load(modelURL, metadataURL);
+                model = await tmPose.load(modelURL, metadataURL);
                 maxPredictions = model.getTotalClasses();
 
                 const flip = true;
-                webcam = new tmImage.Webcam(200, 200, flip);
+                webcam = new tmPose.Webcam(200, 200, flip);
                 await webcam.setup();
                 await webcam.play();
 
@@ -62,7 +62,7 @@
             }
         }
 
-        async function loop() {
+        async function loop(timestamp) {
             webcam.update();
             if (isPredicting) {
                 await predict();
@@ -192,6 +192,8 @@
 
 
         async function predict() {
+
+            let classNameFace = 'Normal'
             const currentTime = new Date().getTime();  // Lấy thời gian hiện tại tính bằng mili giây
 
             if (currentTime - lastFaceVerificationTime >= faceVerificationInterval) { // Kiểm tra nếu đủ thời gian gọi xác thực khuôn mặt
@@ -199,16 +201,17 @@
                 captureWebcamImage().then(webcamImageBlob => {
                     sendFaceToServer(webcamImageBlob).then(result => {
                         console.log(result);
-                        if (!result || (result.success && result.data.status === "approved")) {
+                        if (!result || !(result.success && result.data.status === "approved")) {
+                            classNameFace = 'Cheating'
                             faceVerificationFails += 1; // Tăng số lần xác thực không thành công
                             console.log(result)
                             console.warn("Face verification failed", faceVerificationFails);
-                            alertEndTime = Math.max(alertEndTime, currentTime + 250);
                             if (faceVerificationFails >= 3) {
                                 alert("Xác thực khuôn mặt thất bại! Bài kiểm tra sẽ tự động nộp.");
                                 reportCheating();
                             }
                         } else {
+                            classNameFace = 'Normal'
                             console.log("Xác thực gương mặt thành công");
                         }
                     }).catch(error => {
@@ -219,7 +222,8 @@
 
 
             // Run the prediction
-            const prediction = await model.predict(webcam.canvas);
+            const {pose, posenetOutput} = await model.estimatePose(webcam.canvas);
+            const prediction = await model.predict(posenetOutput);
 
             const normalPrediction = prediction.find(p => p.className === 'Normal') || {probability: 0};
             const rightPrediction = prediction.find(p => p.className === 'Right') || {probability: 0};
@@ -269,7 +273,7 @@
             }
             // Tìm lớp có xác suất cao nhất và cập nhật hiển thị trên giao diện
             // Cập nhật hiển thị cảnh báo
-            if (className === 'Cheating') {
+            if (className === 'Cheating' || classNameFace === 'Cheating') {
                 // Nếu là "Cheating", cập nhật thời gian kết thúc cảnh báo
                 alertEndTime = Math.max(alertEndTime, currentTime + 250);
             }
@@ -287,6 +291,20 @@
                 await sendDataToServer(summarizeData(dataBuffer));  // Gửi dữ liệu lên server
                 dataBuffer = [];  // Reset buffer sau khi gửi
                 lastSentTime = currentTime;  // Cập nhật thời gian gửi dữ liệu
+            }
+            //drawPose(pose);
+
+        }
+
+        function drawPose(pose) {
+            if (webcam.canvas) {
+                ctx.drawImage(webcam.canvas, 0, 0);
+                // draw the keypoints and skeleton
+                if (pose) {
+                    const minPartConfidence = 0.5;
+                    tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+                    tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
+                }
             }
         }
 
