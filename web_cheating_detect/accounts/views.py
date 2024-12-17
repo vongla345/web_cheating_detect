@@ -21,6 +21,7 @@ import logging
 from django.http import HttpResponse
 import os
 from django.conf import settings
+from collections import Counter
 
 logger = logging.getLogger('django')
 
@@ -847,10 +848,15 @@ def upload_student_file(request):
             df = pd.read_excel(file)
             ids = df.iloc[:, 0].dropna().astype(int).tolist()
 
+            # Kiểm tra ID trùng lặp trong file
+            id_counts = Counter(ids)
+            duplicate_ids = [id for id, count in id_counts.items() if count > 1]
+            unique_ids = list(set(ids))
+
             students = []
             errors = []
 
-            for student_id in ids:
+            for student_id in unique_ids:
                 try:
                     student = User.objects.get(id=student_id)  # Lấy model tương ứng
                     students.append({

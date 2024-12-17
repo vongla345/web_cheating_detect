@@ -147,10 +147,26 @@
                 }
             });
 
+            // Function to check for duplicate ID in the table
+            function isDuplicateStudentId(studentId) {
+                const rows = studentTableBody.getElementsByTagName("tr");
+                for (let row of rows) {
+                    const cellId = row.cells[0].textContent; // Cột ID là cột đầu tiên
+                    if (parseInt(cellId) === parseInt(studentId)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             // Confirm add student
             confirmAddBtn.addEventListener("click", () => {
                 const studentInfo = JSON.parse(confirmAddBtn.dataset.studentInfo);
                 if (studentInfo) {
+                    if (isDuplicateStudentId(studentInfo.id)) {
+                        alert(`ID học sinh ${studentInfo.id} đã tồn tại trong danh sách. Vui lòng kiểm tra lại.`);
+                        return; // Dừng việc thêm hàng mới
+                    }
                     const studentRow = document.createElement("tr");
                     studentRow.innerHTML = `
                 <td>${studentInfo.id}</td>
