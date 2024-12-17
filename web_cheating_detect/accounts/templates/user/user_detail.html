@@ -79,6 +79,7 @@
                         <img src="{% static 'assets/user_placeholder.png' %}" alt="Default Profile Picture"
                              class="profile-img-preview" id="profile-img">
                     {% endif %}
+                {% if role_id_user == 3 %}
                     <label for="profile_picture" class="custom-upload-btn">
                         <i class='bx bx-upload'></i> Chọn ảnh đại diện
                     </label>
@@ -88,6 +89,7 @@
                     <div id="loading-icon" class="loading-icon" style="display: none;">
                         <img src="{% static 'assets/loading.gif' %}" alt="Loading...">
                     </div>
+                {% endif %}
                 </div>
 
 
