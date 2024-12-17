@@ -331,9 +331,10 @@ def test_list(request):
             (request.session.get('user_id'),))
         tests = cursor.fetchall()
         conn.close()
-    else:
+    elif role_id == 2:
         tests = Test.objects.filter(created_by=request.session.get('user_id')).values_list('id', 'title', 'description')
-
+    else:
+        tests = []
     return render(request, 'test/test_list.html', {
         'tests': tests,
         'role_id': role_id
@@ -404,7 +405,6 @@ def upload_test(request):
         try:
             # Gọi hàm xử lý file Excel
             questions = process_excel(file)
-            logger.info("processing excel file")
             return JsonResponse({'success': True, 'questions': questions, 'total_questions': len(questions)})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
