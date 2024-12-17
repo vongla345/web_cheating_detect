@@ -400,9 +400,11 @@ def create_test(request):
 def upload_test(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         file = request.FILES['excel_file']
+        logger.info("received excel file")
         try:
             # Gọi hàm xử lý file Excel
             questions = process_excel(file)
+            logger.info("processing excel file")
             return JsonResponse({'success': True, 'questions': questions, 'total_questions': len(questions)})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})

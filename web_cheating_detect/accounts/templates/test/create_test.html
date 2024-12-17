@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% block title %}Tạo bài kiểm tra{% endblock %}
 
 {% block content %}
@@ -40,12 +40,17 @@
                 {% csrf_token %}
                 <h3 class="section-title">Upload câu hỏi từ file Excel</h3>
                 <div class="form-group excel-upload-wrapper">
+                    <a href="{% static 'templates/sample_test.xlsx' %}" download="template.xlsx"
+                       class="custom-upload-btn template-download-btn">
+                        <i class='bx bx-download'></i> Tải file mẫu
+                    </a>
                     <label for="excel-file" class="custom-upload-btn">
                         <i class='bx bx-upload'></i> Chọn file Excel
                     </label>
                     <input type="file" id="excel-file" name="excel-file" accept=".xlsx, .xls" style="display: none;"
                            onchange="handleFileUpload(event)">
                     <span id="selected-file-name" class="file-name-display">Chưa chọn file nào</span>
+
                 </div>
             </form>
 

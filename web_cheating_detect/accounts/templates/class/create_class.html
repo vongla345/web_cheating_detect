@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% block title %} Tạo lớp mới {% endblock %}
 
 {% block content %}
@@ -40,7 +40,10 @@
 
         <div class="form-group custom-file-upload">
             <button type="button" id="add-student-btn" class="add-student-class-btn">Thêm học sinh</button>
-
+            <a href="{% static 'templates/student_list_sample.xlsx' %}" download="template.xlsx"
+               class="custom-upload-btn template-download-btn">
+                <i class='bx bx-download'></i> Tải file mẫu
+            </a>
             <label for="excel-file" class="custom-upload-btn">
                 <i class='bx bx-upload'></i> Chọn file Excel
             </label>

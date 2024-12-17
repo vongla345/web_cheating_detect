@@ -1306,9 +1306,11 @@ div.form-group input {
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
 }
 
+.form-group a {
+    text-decoration: none;
+}
 .form-group input {
     width: 100%;
     padding: 10px;
@@ -1326,6 +1328,10 @@ div.form-group input {
     gap: 10px;
 }
 
+.excel-upload-wrapper a{
+    text-decoration: none;
+    margin: 5px;
+}
 /* Custom Upload Button */
 
 /* Display selected file name */
