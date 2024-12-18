@@ -15,6 +15,7 @@ origins = [
     "http://127.0.0.1:8000",  # Thêm địa chỉ này nếu frontend chạy tại đây
     "http://127.0.0.1:8080",
     "http://104.214.177.160",
+    "https://104.214.177.160",
 ]
 
 app.add_middleware(
