@@ -16,6 +16,7 @@ origins = [
     "http://127.0.0.1:8080",
     "http://104.214.177.160",
     "https://104.214.177.160",
+    "https://baikiemtra.site"
 ]
 
 app.add_middleware(
