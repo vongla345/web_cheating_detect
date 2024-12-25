@@ -25,7 +25,6 @@ from collections import Counter
 
 logger = logging.getLogger('django')
 
-
 def login_view(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)

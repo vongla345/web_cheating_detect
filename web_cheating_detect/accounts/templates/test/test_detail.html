@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
     <script type="text/javascript">
         const URL = "https://teachablemachine.withgoogle.com/models/-RTBgw5Xs/";
-        let model, webcam, ctx, maxPredictions, labelContainer;
+        let model, webcam, ctx, maxPredictions, labelContainer, isTesting;
         let isPredicting = false;  // Biến kiểm soát trạng thái dự đoán
         let isCameraRunning = false;
         let isAuthenticated = false;
@@ -51,11 +51,22 @@
 
                 alert("Đưa mặt vào camera để bắt đầu xác thực khuôn mặt.");
 
-                // Bắt đầu vòng lặp xác thực
-                await startFaceVerification();
-                const startTestBtn = document.getElementById('start-test-btn');
-                startTestBtn.classList.remove('hidden-button');
-                startTestBtn.classList.add('active-button');
+                try {
+                    const isVerified = await startFaceVerification();
+
+                    // Chỉ thực hiện khi xác thực thành công
+                    if (isVerified) {
+                        const startTestBtn = document.getElementById('start-test-btn');
+                        startTestBtn.classList.remove('hidden-button');
+                        startTestBtn.classList.add('active-button');
+                        isTesting = true;
+                        isPredicting = true;
+                        alert('Xác thực thành công, sau đây bạn sẽ kiểm tra góc quay để phù hợp trong quá trình làm bài. Lưu ý dữ liệu gian lận trong lúc kiểm tra góc quay này sẽ không được lưu lại!')
+                    }
+                } catch (error) {
+                    alert("Lỗi trong quá trình xác thực. Vui lòng thử lại.");
+                    console.error("Error during face verification:", error);
+                }
             } catch (error) {
                 alert("Không thể khởi tạo camera hoặc tải mô hình. Vui lòng kiểm tra lại.");
                 console.error("Camera initialization error:", error);
@@ -65,7 +76,7 @@
         async function loop(timestamp) {
             webcam.update();
             if (isPredicting) {
-                await predict();
+                await predict(isTesting);
             }
             window.requestAnimationFrame(loop);
         }
@@ -146,33 +157,60 @@
         }
 
 
-        // Hàm bắt đầu xác thực khuôn mặt
         async function startFaceVerification() {
-            while (true) {
-                // Chụp ảnh từ webcam
-                const webcamImageBlob = await captureWebcamImage();
-                console.log(webcamImageBlob)
-                // Gửi ảnh qua server và nhận kết quả
-                const result = await sendFaceToServer(webcamImageBlob);
+            const verificationTimeout = 10000; // Thời gian chờ tối đa (10 giây)
+            let timeoutTriggered = false;
 
-                // Hiển thị kết quả lên giao diện
-                /*
-                if (result) {
-                    document.getElementById("result-container").innerText =
-                        `Similarity: ${result.similarity.toFixed(2)}% - Status: ${result.status}`;
-                }
-                */
-                console.log(result)
-                // Nếu pass xác thực, dừng kiểm tra
-                if (result.success && result.data.status === "approved") {
-                    alert("Khuôn mặt hợp lệ! Xác thực thành công.");
-                    isAuthenticated = true;
-                    break;
+            const timeout = setTimeout(() => {
+                timeoutTriggered = true;
+                alert("Quá thời gian xác thực. Vui lòng chỉnh lại camera hoặc thử lại.");
+                resetCamera();
+            }, verificationTimeout);
+
+            while (!timeoutTriggered) {
+                try {
+                    // Chụp ảnh từ webcam
+                    const webcamImageBlob = await captureWebcamImage();
+                    console.log(webcamImageBlob);
+                    // Gửi ảnh qua server và nhận kết quả
+                    const result = await sendFaceToServer(webcamImageBlob);
+
+                    console.log(result);
+                    // Nếu pass xác thực, dừng kiểm tra
+                    if (result.success && result.data.status === "approved") {
+                        clearTimeout(timeout); // Dừng bộ đếm thời gian
+                        labelContainer.innerHTML = ""; // Xóa cảnh báo nếu có
+                        isAuthenticated = true;
+                        return true;
+                    }
+
+                    labelContainer.innerHTML = "<div style='color: red; font-weight: bold;'>Không tìm thấy khuôn mặt, vui lòng giữ đúng vị trí!</div>";
+                } catch (error) {
+                    console.error("Lỗi trong quá trình xác thực:", error);
                 }
 
                 // Nếu không pass, đợi 1 giây trước khi tiếp tục
                 await new Promise((resolve) => setTimeout(resolve, 1000));
             }
+
+            // Nếu vượt quá thời gian, trả về false
+            return false;
+        }
+
+        function resetCamera() {
+            // Tắt camera hiện tại nếu đang chạy
+            if (webcam) {
+                webcam.stop();
+            }
+            // Ẩn canvas và nhãn nếu cần
+            document.getElementById("webcam-container").innerHTML = "";
+            labelContainer.innerHTML = "";
+
+            // Đặt lại trạng thái
+            isCameraRunning = false;
+
+            // Khởi động lại camera
+            initCamera();
         }
 
 
@@ -191,12 +229,12 @@
         const faceVerificationInterval = 5000; // Khoảng thời gian giữa các lần xác thực (5 giây)
 
 
-        async function predict() {
+        async function predict(isTesting) {
 
             let classNameFace = 'Normal'
             const currentTime = new Date().getTime();  // Lấy thời gian hiện tại tính bằng mili giây
 
-            if (currentTime - lastFaceVerificationTime >= faceVerificationInterval) { // Kiểm tra nếu đủ thời gian gọi xác thực khuôn mặt
+            if (currentTime - lastFaceVerificationTime >= faceVerificationInterval && !isTesting) { // Kiểm tra nếu đủ thời gian gọi xác thực khuôn mặt
                 lastFaceVerificationTime = currentTime; // Cập nhật thời gian xác thực gần nhất
                 captureWebcamImage().then(webcamImageBlob => {
                     sendFaceToServer(webcamImageBlob).then(result => {
@@ -246,7 +284,7 @@
 
 
             // Kiểm tra xem đã đủ 1 giây để push dữ liệu vào dataBuffer
-            if (currentTime - lastPushTime >= 1000) {  // 1000 mili giây = 1 giây
+            if (currentTime - lastPushTime >= 1000 && !isTesting) {  // 1000 mili giây = 1 giây
                 // Thêm dữ liệu vào dataBuffer
                 dataBuffer.push({
                     className: className,
@@ -275,7 +313,7 @@
             // Cập nhật hiển thị cảnh báo
             if (className === 'Cheating' || classNameFace === 'Cheating') {
                 // Nếu là "Cheating", cập nhật thời gian kết thúc cảnh báo
-                alertEndTime = Math.max(alertEndTime, currentTime + 250);
+                alertEndTime = Math.max(alertEndTime, currentTime + 100);
             }
 
             // Hiển thị hoặc ẩn cảnh báo dựa trên thời gian hiện tại
@@ -286,7 +324,7 @@
             }
 
             // Kiểm tra thời gian để gửi dữ liệu lên server (5 giây)
-            if (currentTime - lastSentTime >= sendInterval) {
+            if (currentTime - lastSentTime >= sendInterval && !isTesting) {
                 console.log("Sending data to server:", dataBuffer);
                 await sendDataToServer(summarizeData(dataBuffer));  // Gửi dữ liệu lên server
                 dataBuffer = [];  // Reset buffer sau khi gửi
@@ -423,6 +461,7 @@
 
                         // Bắt đầu đếm ngược thời gian
                         isPredicting = true;
+                        isTesting = false;
 
                         remainingTime = data.test_duration * 60;  // Chuyển từ phút sang giây
                         startCountdown();
