@@ -506,6 +506,10 @@ div.form-group input {
     gap: 50px;
 }
 
+.info-row input{
+    font-size:16px;
+}
+
 .info-label {
     flex: 0 0 150px;
     color: #666;
@@ -1267,7 +1271,7 @@ div.form-group input {
     background-color: red;
     color: white;
     border: none;
-    padding: 5px 10px;
+    padding: 10px 15px;
     cursor: pointer;
 }
 
@@ -1275,7 +1279,7 @@ div.form-group input {
     background-color: orange;
     color: white;
     border: none;
-    padding: 5px 10px;
+    padding: 10px 15px;
     cursor: pointer;
 }
 

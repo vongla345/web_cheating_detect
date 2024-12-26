@@ -344,7 +344,6 @@ def test_list(request):
 def create_test(request):
     classes = ClassUser.objects.prefetch_related('class_id').filter(user_id=request.session.get('user_id')).values_list(
         'class_id__id', 'class_id__name')
-
     if request.method == 'POST':
         test_form = TestForm(request.POST)
         question_formset = QuestionFormSet(request.POST, prefix='questions')

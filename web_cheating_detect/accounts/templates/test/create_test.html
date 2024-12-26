@@ -6,6 +6,23 @@
     <div class="create-test-container">
         <h1 class="page-title">Tạo bài kiểm tra mới</h1>
 
+        <form method="post" enctype="multipart/form-data" action="{% url 'upload_test' %}">
+            {% csrf_token %}
+            <h3 class="section-title">Upload câu hỏi từ file Excel</h3>
+            <div class="form-group excel-upload-wrapper">
+                <a href="{% static 'templates/sample_test.xlsx' %}" download="template.xlsx"
+                   class="custom-upload-btn template-download-btn">
+                    <i class='bx bx-download'></i> Tải file mẫu
+                </a>
+                <label for="excel-file" class="custom-upload-btn">
+                    <i class='bx bx-upload'></i> Chọn file Excel
+                </label>
+                <input type="file" id="excel-file" name="excel-file" accept=".xlsx, .xls" style="display: none;"
+                       onchange="handleFileUpload(event)">
+                <span id="selected-file-name" class="file-name-display">Chưa chọn file nào</span>
+            </div>
+        </form>
+
         <form method="post" action="{% url 'create_test' %}" class="create-test-form"
               onsubmit="return validateSubmit();">
             {% csrf_token %}
@@ -36,24 +53,6 @@
                     </div>
                 {% endfor %}
             </div>
-            <form method="post" enctype="multipart/form-data" action="{% url 'upload_test' %}">
-                {% csrf_token %}
-                <h3 class="section-title">Upload câu hỏi từ file Excel</h3>
-                <div class="form-group excel-upload-wrapper">
-                    <a href="{% static 'templates/sample_test.xlsx' %}" download="template.xlsx"
-                       class="custom-upload-btn template-download-btn">
-                        <i class='bx bx-download'></i> Tải file mẫu
-                    </a>
-                    <label for="excel-file" class="custom-upload-btn">
-                        <i class='bx bx-upload'></i> Chọn file Excel
-                    </label>
-                    <input type="file" id="excel-file" name="excel-file" accept=".xlsx, .xls" style="display: none;"
-                           onchange="handleFileUpload(event)">
-                    <span id="selected-file-name" class="file-name-display">Chưa chọn file nào</span>
-
-                </div>
-            </form>
-
             <h3 class="section-title">Câu hỏi</h3>
             <div id="questions-container">
                 {{ question_formset.management_form }}
@@ -74,6 +73,7 @@
             </div>
             <button class="create-btn" type="submit">Tạo bài kiểm tra mới</button>
         </form>
+
     </div>
 
     <script>
