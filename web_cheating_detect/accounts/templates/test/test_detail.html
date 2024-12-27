@@ -23,6 +23,9 @@
                     alert("Không tìm thấy ảnh đại diện. Vui lòng cập nhật ảnh trước khi xác thực.");
                     return null;
                 }
+                // Camera khởi tạo thành công
+                isCameraRunning = true;
+
                 document.getElementById("checting-detect-container").style.display = "block";
 
                 const modelURL = URL + "model.json";
@@ -46,8 +49,6 @@
                     labelContainer.appendChild(document.createElement("div"));
                 }
 
-                // Camera khởi tạo thành công
-                isCameraRunning = true;
 
                 alert("Đưa mặt vào camera để bắt đầu xác thực khuôn mặt.");
 
@@ -164,7 +165,17 @@
             const timeout = setTimeout(() => {
                 timeoutTriggered = true;
                 alert("Quá thời gian xác thực. Vui lòng chỉnh lại camera hoặc thử lại.");
-                resetCamera();
+                if (webcam) {
+                    webcam.stop();
+                }
+                // Ẩn canvas và nhãn nếu cần
+                document.getElementById("webcam-container").innerHTML = "";
+                labelContainer.innerHTML = "";
+
+                // Đặt lại trạng thái
+                isCameraRunning = false;
+
+                initCamera()
             }, verificationTimeout);
 
             while (!timeoutTriggered) {
@@ -195,22 +206,6 @@
 
             // Nếu vượt quá thời gian, trả về false
             return false;
-        }
-
-        function resetCamera() {
-            // Tắt camera hiện tại nếu đang chạy
-            if (webcam) {
-                webcam.stop();
-            }
-            // Ẩn canvas và nhãn nếu cần
-            document.getElementById("webcam-container").innerHTML = "";
-            labelContainer.innerHTML = "";
-
-            // Đặt lại trạng thái
-            isCameraRunning = false;
-
-            // Khởi động lại camera
-            initCamera();
         }
 
 
@@ -500,7 +495,7 @@
 
         // Xử lý sự kiện beforeunload
         document.addEventListener("visibilitychange", () => {
-            if (isPredicting && document.hidden && !formSubmitted) {
+            if (isPredicting && document.hidden && !formSubmitted && !isTesting) {
                 if (confirm("Bạn đang rời khỏi bài kiểm tra. Nếu tiếp tục, bài kiểm tra sẽ tự động nộp.")) {
                     submitForm();
                 }
