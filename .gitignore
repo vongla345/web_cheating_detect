@@ -20,10 +20,6 @@ venv.bak/
 *.pyc
 *.pyo
 *.pyd
-*.sqlite3
-db.sqlite3
-*.sqlite3-journal
-*.db
 
 # Django migrations
 **/migrations/
