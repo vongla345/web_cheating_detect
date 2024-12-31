@@ -761,10 +761,18 @@ def class_list(request):
     # Tìm kiếm
     search_query = request.GET.get('search', '')
     if search_query:
-        classes = classes.filter(
-            Q(name__icontains=search_query) |
-            Q(school_year__name__icontains=search_query)
-        )
+        if role_id == 2:  # Giáo viên
+            classes = classes.filter(
+                Q(class_id__name__icontains=search_query) |
+                Q(class_id__school_year__name__icontains=search_query)
+            )
+        elif role_id == 3:  # Quản trị viên
+            # Lọc danh sách tuple
+            classes = [
+                cls for cls in classes if
+                search_query.lower() in cls[1].lower() or  # Tên lớp
+                search_query.lower() in cls[2].lower()  # Năm học
+            ]
 
     # Chuyển đổi danh sách lớp sang dạng list để xử lý
     classes = list(classes)
