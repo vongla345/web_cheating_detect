@@ -222,6 +222,8 @@
         let faceVerificationFails = 0; // Biến đếm số lần xác thực không thành công
         let lastFaceVerificationTime = 0; // Thời gian gọi xác thực khuôn mặt gần nhất
         const faceVerificationInterval = 5000; // Khoảng thời gian giữa các lần xác thực (5 giây)
+        let totalCheatingTime = 0; // Tổng thời gian gian lận (không cần liên tục)
+        const totalCheatingThreshold = 45; // Ngưỡng tổng thời gian gian lận (45 giây)
 
 
         async function predict(isTesting) {
@@ -290,7 +292,8 @@
                 lastPushTime = currentTime;
 
                 if (className === 'Cheating') {
-                    cheatingDuration += 1; // Tăng 1 giây nếu vẫn là "Cheating"
+                    cheatingDuration += 1; // Tăng 1 giây nếu gian lận liên tục
+                    totalCheatingTime += 1; // Tăng tổng thời gian gian lận (không liên tục)
                 } else {
                     cheatingDuration = 0; // Reset nếu quay về "Normal"
                 }
@@ -302,6 +305,15 @@
                     console.log("Sent cheating alert to Telegram");
                     alert("Bạn đã gian lận liên tục, bài kiểm tra sẽ tự động nộp");
                     reportCheating()
+                }
+                // Nếu tổng thời gian gian lận đạt 45 giây thì gửi cảnh báo
+                if (totalCheatingTime >= totalCheatingThreshold && !sentMessage) {
+                    await sendTelegramAlert("Thí sinh {{ name }} đã gian lận tổng cộng 45 giây!");
+                    totalCheatingTime = 0; // Reset sau khi gửi cảnh báo
+                    sentMessage = true; // Đánh dấu đã gửi cảnh báo
+                    console.log("Sent total cheating alert to Telegram");
+                    alert("Bạn đã gian lận quá nhiều lần, bài kiểm tra sẽ tự động nộp");
+                    reportCheating();
                 }
             }
             // Tìm lớp có xác suất cao nhất và cập nhật hiển thị trên giao diện
