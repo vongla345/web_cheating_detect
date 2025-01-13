@@ -234,7 +234,7 @@
             if (currentTime - lastFaceVerificationTime >= faceVerificationInterval && !isTesting) { // Kiểm tra nếu đủ thời gian gọi xác thực khuôn mặt
                 lastFaceVerificationTime = currentTime; // Cập nhật thời gian xác thực gần nhất
                 captureWebcamImage().then(webcamImageBlob => {
-                    sendFaceToServer(webcamImageBlob).then(result => {
+                    sendFaceToServer(webcamImageBlob).then(async result => {
                         console.log(result);
                         if (!result || !(result.success && result.data.status === "approved")) {
                             classNameFace = 'Cheating'
@@ -242,6 +242,7 @@
                             console.log(result)
                             console.warn("Face verification failed", faceVerificationFails);
                             if (faceVerificationFails >= 3) {
+                                await sendTelegramAlert("Thí sinh {{ name }} đã xác thực khuôn mặt thất bại liên tục");
                                 alert("Xác thực khuôn mặt thất bại! Bài kiểm tra sẽ tự động nộp.");
                                 reportCheating();
                             }
