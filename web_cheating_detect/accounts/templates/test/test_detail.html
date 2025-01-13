@@ -505,12 +505,19 @@
 
 
         let formSubmitted = false;
+        let warningCount = 0;
 
-        // Xử lý sự kiện beforeunload
-        document.addEventListener("visibilitychange", () => {
+        document.addEventListener("visibilitychange", async () => {
             if (isPredicting && document.hidden && !formSubmitted && !isTesting) {
-                if (confirm("Bạn đang rời khỏi bài kiểm tra. Nếu tiếp tục, bài kiểm tra sẽ tự động nộp.")) {
-                    submitForm();
+                warningCount++;
+
+                if (warningCount < 3) {
+                    await sendTelegramAlert(`Thí sinh {{ name }} có dấu hiệu gian lận (Lần ${warningCount}) vì đã chuyển tab`);
+                    alert(`Cảnh báo: Bạn đã rời bài kiểm tra (${warningCount}/3). Nếu tiếp tục, bài kiểm tra sẽ bị nộp tự động.`);
+                } else {
+                    await sendTelegramAlert(`Thí sinh {{ name }} đã chuyển tab lần thứ 3. Bài kiểm tra sẽ được nộp tự động.`);
+                    alert("Bạn vừa rời khỏi bài kiểm tra. Hệ thống sẽ tự động nộp bài và gửi thông báo đến giáo viên về hành động này.");
+                    reportCheating();
                 }
             }
         });
